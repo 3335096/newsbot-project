@@ -1,6 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Dict, List, Optional
 import json
+from typing import Dict, List, Set
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     ENV: str = "dev"
@@ -11,6 +12,7 @@ class Settings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_ADMIN_IDS: str = ""
+    TELEGRAM_ALLOWED_USER_IDS: str = ""
     TELEGRAM_CHANNEL_IDS: str = "{}"
 
     OPENROUTER_API_KEY: str = ""
@@ -28,6 +30,15 @@ class Settings(BaseSettings):
         if not self.TELEGRAM_ADMIN_IDS:
             return []
         return [int(x.strip()) for x in self.TELEGRAM_ADMIN_IDS.split(",") if x.strip()]
+
+    @property
+    def allowed_user_ids(self) -> Set[int]:
+        allowed = {
+            int(x.strip()) for x in self.TELEGRAM_ALLOWED_USER_IDS.split(",") if x.strip()
+        }
+        if not allowed:
+            allowed = set(self.admin_ids)
+        return allowed
 
     @property
     def channel_ids(self) -> Dict[str, int]:
