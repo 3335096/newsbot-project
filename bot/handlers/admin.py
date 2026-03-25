@@ -8,4 +8,9 @@ router = Router()
 async def admin_panel(message: types.Message):
     await message.answer("Welcome to the admin panel!")
 
+
+@router.message(Command("admin"))
+async def admin_panel_denied(message: types.Message):
+    await message.answer("Команда доступна только администраторам.")
+
 # More admin functionalities will be added here

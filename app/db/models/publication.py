@@ -1,14 +1,21 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Text, JSON, ForeignKey, TIMESTAMP
 from datetime import datetime
-from .base import Base, TimestampMixin
 
-class Publication(Base, TimestampMixin):
+from sqlalchemy import BigInteger, ForeignKey, TIMESTAMP, Text, text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from .base import Base
+
+
+class Publication(Base):
     __tablename__ = "publications"
     id: Mapped[int] = mapped_column(primary_key=True)
-    draft_id: Mapped[int | None] = mapped_column(ForeignKey("articles_draft.id", ondelete="CASCADE"))
-    channel_id: Mapped[str] = mapped_column(Text, nullable=False)
-    message_id: Mapped[int] = mapped_column(nullable=False)
-    published_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.now)
-    status: Mapped[str] = mapped_column(Text, default="published")  # published/edited/deleted
-    metadata_: Mapped[dict | None] = mapped_column(JSON, name="metadata")
+    draft_id: Mapped[int | None] = mapped_column(ForeignKey("articles_draft.id", ondelete="SET NULL"))
+    channel_id: Mapped[int | None] = mapped_column(BigInteger)
+    message_id: Mapped[int | None] = mapped_column(BigInteger)
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="queued", server_default=text("'queued'")
+    )
+    scheduled_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    target_language: Mapped[str] = mapped_column(Text, nullable=False, default="ru", server_default=text("'ru'"))
+    log: Mapped[str | None] = mapped_column(Text)

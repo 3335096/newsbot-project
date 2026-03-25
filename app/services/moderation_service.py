@@ -10,16 +10,16 @@ class ModerationService:
 
     async def moderate_text(self, text: str) -> dict:
         flags = {}
-        rules = self.db.query(ModerationRule).filter(ModerationRule.is_active == True).all()
+        rules = self.db.query(ModerationRule).filter(ModerationRule.enabled == True).all()
 
         for rule in rules:
-            if rule.rule_type == "keyword" and rule.pattern:
+            if rule.kind == "keyword_blacklist" and rule.pattern:
                 if rule.pattern.lower() in text.lower():
-                    flags[rule.name] = {"severity": rule.severity, "action": rule.action}
-            elif rule.rule_type == "regex" and rule.pattern:
+                    flags[rule.pattern] = {"action": rule.action}
+            elif rule.kind == "regex" and rule.pattern:
                 if re.search(rule.pattern, text, re.IGNORECASE):
-                    flags[rule.name] = {"severity": rule.severity, "action": rule.action}
-            elif rule.rule_type == "llm":
+                    flags[rule.pattern] = {"action": rule.action}
+            elif rule.kind == "llm":
                 # For LLM-based moderation, we'd typically send the text to an LLM
                 # and parse its response. This is a placeholder.
                 # prompt = f"Moderate the following text for {rule.name}: {text}"
