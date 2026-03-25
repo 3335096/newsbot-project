@@ -172,3 +172,53 @@
 ### Ограничения на текущем шаге
 - Для SQLite offline SQL в миграции не выполняются операции, требующие batch reflection.
 - Основная целевая среда исполнения и ограничений — PostgreSQL.
+
+---
+
+## Итерация 6 — Модерация, правила, статусы и очистка 90 дней
+
+### Что сделано
+- Реализован `ModerationService`:
+  - оценка статьи по правилам `domain_blacklist` и `keyword_blacklist`,
+  - действия правил `block` / `flag`,
+  - унифицированная структура `flags` для отображения в карточке.
+- Модерация встроена в pipeline парсинга (`ParserService`):
+  - модерация выполняется на каждом материале,
+  - при `block` материал не попадает в черновики,
+  - при `flag` черновик получает статус `flagged`,
+  - сработавшие правила сохраняются в `articles_draft.flags`.
+- Добавлен API модерации:
+  - `GET /api/moderation/rules`
+  - `POST /api/moderation/rules`
+  - `POST /api/moderation/rules/{id}/toggle`
+- Бот (админ):
+  - раздел `Moderation Rules` в `/admin`,
+  - просмотр правил, toggle через inline,
+  - добавление правила командой:
+    - `/rule_add <kind> <pattern> <action> [comment]`
+- Карточка draft в боте теперь показывает блок `Moderation flags` при наличии сработавших правил.
+- Scheduler:
+  - добавлена ежедневная очистка данных старше 90 дней (`0 3 * * *`) для:
+    - `llm_tasks`
+    - `publications`
+    - `articles_draft`
+    - `articles_raw`
+- Добавлена миграция `20260325_0004_moderation_status_constraints`:
+  - нормализация `moderation_rules.kind` и `moderation_rules.action`,
+  - check-constraints на допустимые значения (с SQLite-safe веткой).
+
+### Тесты и проверки
+- Добавлены unit-тесты `tests/services/test_moderation_service.py`:
+  - срабатывание keyword/domain правил,
+  - block/flag outcomes,
+  - create/toggle rule.
+- Запуск тестов:
+  - `pytest tests/services/test_parser_service.py tests/services/test_publisher_service.py tests/services/test_moderation_service.py` — успешно.
+- Smoke-check:
+  - `import app.main` — OK
+  - `import bot.main` — OK
+  - `alembic upgrade head --sql` — OK (до ревизии `20260325_0004`)
+
+### Ограничения на текущем шаге
+- В текущем варианте `block` означает пропуск создания/обновления draft, но `articles_raw` всё равно сохраняется.
+- Очистка рассчитана под PostgreSQL (`interval`), для SQLite она используется только в smoke-сценариях без фактического выполнения cleanup job.
