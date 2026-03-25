@@ -4,10 +4,12 @@ from loguru import logger
 from sqlalchemy.orm import Session
 from app.db.models.source import Source
 from app.db.session import SessionLocal
+from app.services.parser_service import ParserService
 
 class Scheduler:
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
+        self.parser_service = ParserService()
 
     def start(self):
         self.scheduler.start()
@@ -18,10 +20,25 @@ class Scheduler:
         logger.info(f"Added job {id}")
 
     def schedule_source_fetching(self, source_id: int, cron_schedule: str):
-        # This is a placeholder. In a real app, func would be an actual fetching function.
         async def fetch_source_job():
-            logger.info(f"Fetching source {source_id}...")
-            # Here you would call your parser service to fetch and process articles
+            db: Session = SessionLocal()
+            try:
+                source = db.query(Source).filter(Source.id == source_id, Source.enabled == True).first()
+                if not source:
+                    logger.warning("Source {} not found or disabled, skipping", source_id)
+                    return
+
+                stats = await self.parser_service.process_source(db, source)
+                logger.info(
+                    "Source {} processed: processed={}, created={}",
+                    source_id,
+                    stats["processed"],
+                    stats["created"],
+                )
+            except Exception as exc:
+                logger.exception("Scheduled parser job failed for source {}: {}", source_id, exc)
+            finally:
+                db.close()
 
         self.add_job(
             fetch_source_job,
