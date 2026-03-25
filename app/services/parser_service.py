@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from app.db.models.article_raw import ArticleRaw
 from app.db.models.source import Source
-from app.services.translation_service import TranslationService
 
 try:
     from trafilatura import extract as trafilatura_extract
@@ -25,9 +24,17 @@ except Exception:  # pragma: no cover - optional fallback
 
 
 class ParserService:
-    def __init__(self, timeout_seconds: int = 30):
+    def __init__(self, timeout_seconds: int = 30, translation_service: Any | None = None):
         self.timeout_seconds = timeout_seconds
-        self.translation_service = TranslationService()
+        self.translation_service = translation_service
+        if self.translation_service is None:
+            try:
+                from app.services.translation_service import TranslationService
+
+                self.translation_service = TranslationService()
+            except Exception as exc:  # pragma: no cover - env-specific bootstrap fallback
+                logger.warning("Translation service unavailable at startup: {}", exc)
+                self.translation_service = None
 
     async def fetch_rss(self, url: str) -> list[dict[str, Any]]:
         async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
@@ -186,14 +193,14 @@ class ParserService:
             )
             if is_created:
                 created += 1
-                if source.translate_enabled:
-                    _, draft_created = await self.translation_service.get_or_create_draft_for_article(
-                        db,
-                        article,
-                        target_language=source.default_target_language,
-                    )
-                    if draft_created:
-                        drafts_created += 1
+            if source.translate_enabled and self.translation_service is not None:
+                _, draft_created = await self.translation_service.get_or_create_draft_for_article(
+                    db,
+                    article,
+                    target_language=source.default_target_language,
+                )
+                if draft_created:
+                    drafts_created += 1
 
         return {"processed": processed, "created": created, "drafts_created": drafts_created}
 
