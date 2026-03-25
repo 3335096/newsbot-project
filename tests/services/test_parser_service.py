@@ -5,10 +5,12 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.db.models.article_draft import ArticleDraft
 from app.db.models.article_raw import ArticleRaw
 from app.db.models.base import Base
 from app.db.models.source import Source
 from app.services.parser_service import ParserService
+from app.services.translation_service import TranslationService
 
 
 def _db_session() -> Session:
@@ -113,4 +115,76 @@ def test_upsert_article_raw_deduplicates_by_url_and_hash() -> None:
 
     count = db.query(ArticleRaw).count()
     assert count == 1
+
+
+def test_translation_cache_creates_second_draft_without_llm_call() -> None:
+    db = _db_session()
+    source = Source(name="s1", type="rss", url="https://example.com/feed.xml")
+    db.add(source)
+    db.commit()
+    db.refresh(source)
+
+    article_one = ArticleRaw(
+        source_id=source.id,
+        url="https://example.com/article-1",
+        title_raw="Hello",
+        content_raw="World",
+        media=[],
+        language_detected="en",
+        hash_original="same_hash",
+    )
+    article_two = ArticleRaw(
+        source_id=source.id,
+        url="https://example.com/article-2",
+        title_raw="Hello2",
+        content_raw="World2",
+        media=[],
+        language_detected="en",
+        hash_original="same_hash",
+    )
+    db.add(article_one)
+    db.add(article_two)
+    db.commit()
+    db.refresh(article_one)
+    db.refresh(article_two)
+
+    service = TranslationService()
+
+    async def fake_translate_text(**kwargs):
+        return {
+            "title_translated": "Привет",
+            "content_translated": "Мир",
+            "translation_engine": "openrouter:test-model",
+            "translation_preset": "translation_editorial",
+        }
+
+    service.translate_text = fake_translate_text  # type: ignore[method-assign]
+
+    import asyncio
+
+    first_draft, first_created = asyncio.run(
+        service.get_or_create_draft_for_article(
+            db,
+            article_one,
+            target_language="ru",
+            model="test-model",
+        )
+    )
+    assert first_created is True
+    assert first_draft.title_translated == "Привет"
+
+    second_draft, second_created = asyncio.run(
+        service.get_or_create_draft_for_article(
+            db,
+            article_two,
+            target_language="ru",
+            model="test-model",
+        )
+    )
+    assert second_created is True
+    assert second_draft.title_translated == "Привет"
+    assert second_draft.content_translated == "Мир"
+
+    drafts_count = db.query(ArticleDraft).count()
+    assert drafts_count == 2
 
