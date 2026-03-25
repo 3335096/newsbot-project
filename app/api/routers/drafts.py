@@ -23,6 +23,7 @@ class DraftOut(BaseModel):
     title_translated: str | None
     content_translated: str | None
     source_language: str | None
+    flags: list[dict] | None
     status: Literal["new", "flagged", "approved", "rejected", "published"]
 
 
@@ -57,6 +58,7 @@ async def get_drafts(db: Session = Depends(get_db)):
                 "title_translated": draft.title_translated,
                 "content_translated": draft.content_translated,
                 "source_language": source_language,
+                "flags": draft.flags,
                 "status": draft.status,
             }
         )
@@ -82,6 +84,7 @@ async def get_draft(draft_id: int, db: Session = Depends(get_db)):
         "title_translated": draft.title_translated,
         "content_translated": draft.content_translated,
         "source_language": raw.language_detected if raw else None,
+        "flags": draft.flags,
         "status": draft.status,
     }
 

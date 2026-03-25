@@ -10,6 +10,7 @@ def _admin_keyboard() -> types.InlineKeyboardMarkup:
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
             [types.InlineKeyboardButton(text="LLM Presets", callback_data="admin_llm_presets")],
+            [types.InlineKeyboardButton(text="Moderation Rules", callback_data="admin_moderation_rules")],
         ]
     )
 
@@ -71,6 +72,109 @@ async def admin_llm_presets(callback: types.CallbackQuery):
             reply_markup=_preset_action_keyboard(preset["name"]),
         )
     await callback.answer()
+
+
+@router.callback_query(F.data == "admin_moderation_rules", F.from_user.id.in_(settings.admin_ids))
+async def admin_moderation_rules(callback: types.CallbackQuery):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{settings.APP_BASE_URL}/api/moderation/rules")
+        if response.status_code != 200:
+            await callback.message.answer(f"Failed to load moderation rules: {response.text}")
+            await callback.answer()
+            return
+        rules = response.json()
+
+    if not rules:
+        await callback.message.answer(
+            "No moderation rules yet.\n"
+            "Use:\n"
+            "/rule_add <kind> <pattern> <action> [comment]\n"
+            "kind: domain_blacklist|keyword_blacklist\n"
+            "action: block|flag"
+        )
+        await callback.answer()
+        return
+
+    for rule in rules:
+        text = (
+            f"Rule #{rule['id']}\n"
+            f"kind: {rule['kind']}\n"
+            f"pattern: {rule['pattern']}\n"
+            f"action: {rule['action']}\n"
+            f"enabled: {rule['enabled']}\n"
+            f"comment: {rule.get('comment') or '-'}"
+        )
+        kb = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="Toggle rule",
+                        callback_data=f"admin_rule_toggle_{rule['id']}",
+                    )
+                ]
+            ]
+        )
+        await callback.message.answer(text, reply_markup=kb)
+
+    await callback.message.answer(
+        "Add rule command:\n"
+        "/rule_add <kind> <pattern> <action> [comment]\n"
+        "Example:\n"
+        "/rule_add keyword_blacklist bitcoin block Спам по крипте"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin_rule_toggle_"), F.from_user.id.in_(settings.admin_ids))
+async def admin_toggle_rule(callback: types.CallbackQuery):
+    rule_id = callback.data.replace("admin_rule_toggle_", "", 1)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(f"{settings.APP_BASE_URL}/api/moderation/rules/{rule_id}/toggle")
+        if response.status_code != 200:
+            await callback.message.answer(f"Failed to toggle rule: {response.text}")
+            await callback.answer()
+            return
+        rule = response.json()
+    await callback.message.answer(
+        f"Rule #{rule['id']} enabled={rule['enabled']}\n"
+        f"{rule['kind']} | {rule['action']} | {rule['pattern']}"
+    )
+    await callback.answer()
+
+
+@router.message(Command("rule_add"), F.from_user.id.in_(settings.admin_ids))
+async def admin_rule_add(message: types.Message):
+    # /rule_add <kind> <pattern> <action> [comment]
+    parts = message.text.split(maxsplit=4) if message.text else []
+    if len(parts) < 4:
+        await message.answer(
+            "Usage:\n"
+            "/rule_add <kind> <pattern> <action> [comment]\n"
+            "kind: domain_blacklist|keyword_blacklist\n"
+            "action: block|flag"
+        )
+        return
+    kind, pattern, action = parts[1], parts[2], parts[3]
+    comment = parts[4] if len(parts) > 4 else None
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/moderation/rules",
+            json={
+                "kind": kind,
+                "pattern": pattern,
+                "action": action,
+                "enabled": True,
+                "comment": comment,
+            },
+        )
+        if response.status_code != 200:
+            await message.answer(f"Failed: {response.text}")
+            return
+        rule = response.json()
+        await message.answer(
+            f"Rule created #{rule['id']}: {rule['kind']} | {rule['action']} | {rule['pattern']}"
+        )
 
 
 @router.callback_query(F.data.startswith("admin_preset_toggle_"), F.from_user.id.in_(settings.admin_ids))

@@ -2,6 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from aiogram import Bot
 from loguru import logger
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.db.models.source import Source
 from app.db.session import SessionLocal
@@ -59,6 +60,7 @@ class Scheduler:
         finally:
             db.close()
         self.schedule_publications_processing()
+        self.schedule_cleanup_old_data()
 
     def schedule_publications_processing(self):
         async def process_publications_job():
@@ -79,6 +81,36 @@ class Scheduler:
             process_publications_job,
             CronTrigger.from_crontab("*/1 * * * *"),
             id="process_publications",
+            replace_existing=True,
+            max_instances=1,
+        )
+
+    def schedule_cleanup_old_data(self):
+        async def cleanup_job():
+            db: Session = SessionLocal()
+            try:
+                # Keep data for last 90 days (MVP requirement).
+                db.execute(text("DELETE FROM llm_tasks WHERE created_at < now() - interval '90 days'"))
+                db.execute(
+                    text(
+                        "DELETE FROM publications "
+                        "WHERE COALESCE(published_at, scheduled_at) < now() - interval '90 days'"
+                    )
+                )
+                db.execute(text("DELETE FROM articles_draft WHERE created_at < now() - interval '90 days'"))
+                db.execute(text("DELETE FROM articles_raw WHERE fetched_at < now() - interval '90 days'"))
+                db.commit()
+                logger.info("Cleanup job finished")
+            except Exception as exc:
+                db.rollback()
+                logger.exception("Cleanup job failed: {}", exc)
+            finally:
+                db.close()
+
+        self.add_job(
+            cleanup_job,
+            CronTrigger.from_crontab("0 3 * * *"),
+            id="cleanup_old_data",
             replace_existing=True,
             max_instances=1,
         )

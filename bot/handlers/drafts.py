@@ -29,6 +29,15 @@ def _card_text(draft: dict, view_mode: str) -> str:
     ) or "—"
     lang_line = f"{draft.get('source_language') or 'unknown'} → {draft.get('target_language') or 'ru'}"
     mode_label = "ORIGINAL" if is_original else "TRANSLATION"
+    flags = draft.get("flags") or []
+    flags_block = ""
+    if flags:
+        lines = []
+        for item in flags[:5]:
+            lines.append(
+                f"- {item.get('kind')} | {item.get('action')} | {item.get('pattern')}"
+            )
+        flags_block = "\n\nModeration flags:\n" + "\n".join(lines)
     return (
         f"Draft ID: {draft['id']}\n"
         f"Status: {draft['status']}\n"
@@ -36,6 +45,7 @@ def _card_text(draft: dict, view_mode: str) -> str:
         f"Mode: {mode_label}\n\n"
         f"Title: {title}\n\n"
         f"Content: {content}"
+        f"{flags_block}"
     )
 
 
