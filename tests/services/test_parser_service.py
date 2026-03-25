@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -76,7 +76,7 @@ def test_upsert_article_raw_deduplicates_by_url_and_hash() -> None:
         title_raw="t1",
         content_raw="c1",
         media=[],
-        published_at=datetime.utcnow(),
+        published_at=datetime.now(timezone.utc),
         language_detected="en",
         hash_original=parser.compute_hash("c1"),
     )

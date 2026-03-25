@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, TIMESTAMP, ForeignKey, Text, UniqueConstraint, text
+from sqlalchemy import JSON, TIMESTAMP, ForeignKey, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -20,7 +20,7 @@ class ArticleRaw(Base):
     media: Mapped[dict | None] = mapped_column(JSON)
     published_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     fetched_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
     language_detected: Mapped[str | None] = mapped_column(Text)
     hash_original: Mapped[str] = mapped_column(Text, nullable=False)
