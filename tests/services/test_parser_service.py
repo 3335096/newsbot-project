@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.db.models.article_draft import ArticleDraft
 from app.db.models.article_raw import ArticleRaw
 from app.db.models.base import Base
 from app.db.models.source import Source
@@ -113,4 +115,121 @@ def test_upsert_article_raw_deduplicates_by_url_and_hash() -> None:
 
     count = db.query(ArticleRaw).count()
     assert count == 1
+
+
+def test_translation_cache_creates_second_draft_without_llm_call() -> None:
+    db = _db_session()
+    source = Source(name="s1", type="rss", url="https://example.com/feed.xml")
+    source_two = Source(name="s2", type="rss", url="https://example.com/other-feed.xml")
+    db.add(source)
+    db.add(source_two)
+    db.commit()
+    db.refresh(source)
+    db.refresh(source_two)
+
+    article_one = ArticleRaw(
+        source_id=source.id,
+        url="https://example.com/article-1",
+        title_raw="Hello",
+        content_raw="World",
+        media=[],
+        language_detected="en",
+        hash_original="same_hash",
+    )
+    article_two = ArticleRaw(
+        source_id=source_two.id,
+        url="https://example.com/article-2",
+        title_raw="Hello2",
+        content_raw="World2",
+        media=[],
+        language_detected="en",
+        hash_original="same_hash",
+    )
+    db.add(article_one)
+    db.add(article_two)
+    db.commit()
+    db.refresh(article_one)
+    db.refresh(article_two)
+
+    class FakeTranslationService:
+        async def get_or_create_draft_for_article(
+            self,
+            db: Session,
+            article: ArticleRaw,
+            *,
+            target_language: str,
+            model: str = "unused",
+            preset: str | None = None,
+        ):
+            existing = (
+                db.query(ArticleDraft)
+                .filter(
+                    ArticleDraft.article_raw_id == article.id,
+                    ArticleDraft.target_language == target_language,
+                )
+                .first()
+            )
+            if existing:
+                return existing, False
+
+            cached = (
+                db.query(ArticleDraft)
+                .join(ArticleRaw, ArticleRaw.id == ArticleDraft.article_raw_id)
+                .filter(
+                    ArticleRaw.hash_original == article.hash_original,
+                    ArticleDraft.target_language == target_language,
+                )
+                .first()
+            )
+            if cached:
+                title_translated = cached.title_translated
+                content_translated = cached.content_translated
+                translation_engine = cached.translation_engine
+                translation_preset = cached.translation_preset
+            else:
+                title_translated = "Привет"
+                content_translated = "Мир"
+                translation_engine = "openrouter:test-model"
+                translation_preset = "translation_editorial"
+
+            draft = ArticleDraft(
+                article_raw_id=article.id,
+                target_language=target_language,
+                title_translated=title_translated,
+                content_translated=content_translated,
+                translation_engine=translation_engine,
+                translation_preset=translation_preset,
+                status="new",
+                media=article.media,
+            )
+            db.add(draft)
+            db.commit()
+            db.refresh(draft)
+            return draft, True
+
+    service = FakeTranslationService()
+
+    first_draft, first_created = asyncio.run(
+        service.get_or_create_draft_for_article(
+            db,
+            article_one,
+            target_language="ru",
+        )
+    )
+    assert first_created is True
+    assert first_draft.title_translated == "Привет"
+
+    second_draft, second_created = asyncio.run(
+        service.get_or_create_draft_for_article(
+            db,
+            article_two,
+            target_language="ru",
+        )
+    )
+    assert second_created is True
+    assert second_draft.title_translated == "Привет"
+    assert second_draft.content_translated == "Мир"
+
+    drafts_count = db.query(ArticleDraft).count()
+    assert drafts_count == 2
 

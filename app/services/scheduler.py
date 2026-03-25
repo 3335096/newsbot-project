@@ -30,10 +30,11 @@ class Scheduler:
 
                 stats = await self.parser_service.process_source(db, source)
                 logger.info(
-                    "Source {} processed: processed={}, created={}",
+                    "Source {} processed: processed={}, created={}, drafts_created={}",
                     source_id,
                     stats["processed"],
                     stats["created"],
+                    stats["drafts_created"],
                 )
             except Exception as exc:
                 logger.exception("Scheduled parser job failed for source {}: {}", source_id, exc)

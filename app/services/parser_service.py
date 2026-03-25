@@ -24,8 +24,17 @@ except Exception:  # pragma: no cover - optional fallback
 
 
 class ParserService:
-    def __init__(self, timeout_seconds: int = 30):
+    def __init__(self, timeout_seconds: int = 30, translation_service: Any | None = None):
         self.timeout_seconds = timeout_seconds
+        self.translation_service = translation_service
+        if self.translation_service is None:
+            try:
+                from app.services.translation_service import TranslationService
+
+                self.translation_service = TranslationService()
+            except Exception as exc:  # pragma: no cover - env-specific bootstrap fallback
+                logger.warning("Translation service unavailable at startup: {}", exc)
+                self.translation_service = None
 
     async def fetch_rss(self, url: str) -> list[dict[str, Any]]:
         async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
@@ -143,11 +152,12 @@ class ParserService:
     async def process_source(self, db: Session, source: Source) -> dict[str, int]:
         if source.type != "rss":
             logger.info("Source {} has unsupported type {} for MVP", source.id, source.type)
-            return {"processed": 0, "created": 0}
+            return {"processed": 0, "created": 0, "drafts_created": 0}
 
         entries = await self.fetch_rss(source.url)
         processed = 0
         created = 0
+        drafts_created = 0
 
         for entry in entries:
             if not entry["url"]:
@@ -170,7 +180,7 @@ class ParserService:
             lang = self.detect_language(f"{title or ''}\n{content}")
             content_hash = self.compute_hash(f"{title or ''}\n{content}")
 
-            _, is_created = self.upsert_article_raw(
+            article, is_created = self.upsert_article_raw(
                 db,
                 source_id=source.id,
                 url=entry["url"],
@@ -183,8 +193,16 @@ class ParserService:
             )
             if is_created:
                 created += 1
+            if source.translate_enabled and self.translation_service is not None:
+                _, draft_created = await self.translation_service.get_or_create_draft_for_article(
+                    db,
+                    article,
+                    target_language=source.default_target_language,
+                )
+                if draft_created:
+                    drafts_created += 1
 
-        return {"processed": processed, "created": created}
+        return {"processed": processed, "created": created, "drafts_created": drafts_created}
 
     @staticmethod
     def _parsed_time_to_datetime(parsed_struct: time.struct_time | None) -> datetime | None:
