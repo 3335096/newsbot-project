@@ -1,0 +1,42 @@
+# Тестирование
+
+## Что уже покрыто
+
+На текущий момент в репозитории есть модульные тесты:
+
+- `tests/services/test_parser_service.py`
+
+Покрытые сценарии:
+
+1. Стабильность хэширования после нормализации текста.
+2. Эвристическое определение языка (`ru`, `en`, `unknown`).
+3. Извлечение контента по CSS-правилам.
+4. Дедупликация `articles_raw` по URL и `(source_id, hash_original)`.
+5. Проверка поведения кэша переводов на уровне пайплайна.
+
+## Быстрый запуск тестов
+
+```bash
+python3 -m pytest tests/services/test_parser_service.py -q
+```
+
+## Smoke-check (рекомендуется после изменений инфраструктуры)
+
+```bash
+DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -c "import app.main; print('import app.main: OK')"
+DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -c "import bot.main; print('import bot.main: OK')"
+DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -m alembic upgrade head --sql
+```
+
+## Что добавить дальше (рекомендуется)
+
+1. Тесты для `LLMPresetService`:
+   - bootstrap дефолтных пресетов,
+   - update/disable пресета.
+2. Тесты для `LLMTaskService`:
+   - summary/rewrite/title_hashtags с моком LLM.
+3. Интеграционный тест потока:
+   - `source -> articles_raw -> articles_draft -> llm_task`.
+4. Негативные сценарии API:
+   - невалидные preset/task_type,
+   - недоступные draft/preset.
