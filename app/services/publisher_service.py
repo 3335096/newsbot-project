@@ -11,8 +11,6 @@ from sqlalchemy.orm import Session
 from app.db.models.article_draft import ArticleDraft
 from app.db.models.article_raw import ArticleRaw
 from app.db.models.publication import Publication
-from core.config import settings
-
 TELEGRAM_MESSAGE_LIMIT = 4096
 TELEGRAM_CAPTION_LIMIT = 1024
 
@@ -91,6 +89,7 @@ class PublisherService:
         try:
             if chunks:
                 first_chunk = chunks[0]
+                from core.config import settings
                 if media_url and settings.ENABLE_IMAGES:
                     sent = await self.bot.send_photo(
                         chat_id=publication.channel_id,
@@ -211,6 +210,8 @@ class PublisherService:
 
     @staticmethod
     def _resolve_channel_id(channel_key: str) -> int:
+        from core.config import settings
+
         channel_id = settings.channel_ids.get(channel_key)
         if not channel_id:
             raise ValueError(f"Channel '{channel_key}' not found in TELEGRAM_CHANNEL_IDS")
