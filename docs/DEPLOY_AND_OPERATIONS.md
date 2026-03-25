@@ -1,0 +1,61 @@
+# Развертывание и эксплуатация
+
+## 1. Быстрый запуск (Docker Compose)
+
+1. Скопируйте переменные окружения:
+   - `cp .env.example .env`
+2. Проверьте ключевые значения в `.env`:
+   - `DATABASE_URL`
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_ADMIN_IDS`
+   - `TELEGRAM_ALLOWED_USER_IDS`
+   - `OPENROUTER_API_KEY`
+3. Запустите сервисы:
+   - `docker compose up --build`
+
+## 2. Локальный запуск без Docker
+
+1. Установите зависимости:
+   - `python3 -m pip install -r requirements.txt`
+2. Примените миграции:
+   - `alembic upgrade head`
+3. Запустите API:
+   - `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+4. Запустите бота:
+   - `python -m bot.main`
+
+## 3. Проверка после деплоя (smoke-check)
+
+- Импорт API:
+  - `python3 -c "import app.main; print('import app.main: OK')"`
+- Импорт бота:
+  - `python3 -c "import bot.main; print('import bot.main: OK')"`
+- Проверка SQL миграций:
+  - `alembic upgrade head --sql`
+
+## 4. Логи и диагностика
+
+- API/бот используют стандартный лог-вывод процесса.
+- Ключевые точки для диагностики:
+  - ошибки LLM запросов (OpenRouter),
+  - ошибки миграций,
+  - ошибки обработки callback в боте.
+
+## 5. Управление доступом
+
+- Белый список:
+  - `TELEGRAM_ALLOWED_USER_IDS`
+- Админы:
+  - `TELEGRAM_ADMIN_IDS`
+- Если `TELEGRAM_ALLOWED_USER_IDS` пуст, используется `TELEGRAM_ADMIN_IDS`.
+
+## 6. Рекомендации по эксплуатации
+
+- Не хранить секреты в репозитории.
+- Перед обновлениями на проде:
+  1. `alembic upgrade head --sql`
+  2. `alembic upgrade head`
+  3. smoke-check импортов.
+- После каждой новой итерации обновлять:
+  - `docs/ITERATIONS_LOG.md`
+  - при необходимости `README.md`.

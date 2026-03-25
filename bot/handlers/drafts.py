@@ -9,7 +9,6 @@ router = Router()
 
 class DraftsState(StatesGroup):
     waiting_for_rejection_reason = State()
-    waiting_for_view_mode = State()
 
 
 def _is_allowed_user(user_id: int) -> bool:
@@ -42,9 +41,18 @@ def _card_text(draft: dict, view_mode: str) -> str:
 
 def _card_keyboard(draft_id: int, view_mode: str) -> types.InlineKeyboardMarkup:
     switch_label = "Show translation" if view_mode == "original" else "Show original"
+    channel_buttons = []
+    for channel_key in settings.channel_ids.keys():
+        channel_buttons.append(
+            [types.InlineKeyboardButton(text=f"Publish now: {channel_key}", callback_data=f"publish_now_{draft_id}_{channel_key}")]
+        )
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
             [types.InlineKeyboardButton(text=switch_label, callback_data=f"toggle_view_{draft_id}_{view_mode}")],
+            [types.InlineKeyboardButton(text="Summary", callback_data=f"llm_summary_{draft_id}")],
+            [types.InlineKeyboardButton(text="Rewrite style", callback_data=f"llm_rewrite_{draft_id}")],
+            [types.InlineKeyboardButton(text="Title/Hashtags", callback_data=f"llm_title_hashtags_{draft_id}")],
+            *channel_buttons,
             [types.InlineKeyboardButton(text="Approve", callback_data=f"approve_draft_{draft_id}")],
             [types.InlineKeyboardButton(text="Reject", callback_data=f"reject_draft_{draft_id}")],
         ]
@@ -115,6 +123,79 @@ async def approve_draft_callback(callback: CallbackQuery):
             await callback.message.answer(f"Failed to approve draft {draft_id}: {response.text}")
     await callback.answer()
 
+
+@router.callback_query(F.data.startswith("llm_summary_"))
+async def llm_summary_callback(callback: CallbackQuery):
+    if not _is_allowed_user(callback.from_user.id):
+        await callback.message.answer("Доступ запрещен.")
+        await callback.answer()
+        return
+    draft_id = callback.data.split("_")[2]
+    await _run_llm_and_report(callback, draft_id=draft_id, task_type="summary", preset="summary")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("llm_rewrite_"))
+async def llm_rewrite_callback(callback: CallbackQuery):
+    if not _is_allowed_user(callback.from_user.id):
+        await callback.message.answer("Доступ запрещен.")
+        await callback.answer()
+        return
+    draft_id = callback.data.split("_")[2]
+    await _run_llm_and_report(
+        callback,
+        draft_id=draft_id,
+        task_type="rewrite",
+        preset="rewrite_style",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("llm_title_hashtags_"))
+async def llm_title_hashtags_callback(callback: CallbackQuery):
+    if not _is_allowed_user(callback.from_user.id):
+        await callback.message.answer("Доступ запрещен.")
+        await callback.answer()
+        return
+    draft_id = callback.data.split("_")[3]
+    await _run_llm_and_report(
+        callback,
+        draft_id=draft_id,
+        task_type="title_hashtags",
+        preset="title_hashtags",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("publish_now_"))
+async def publish_now_callback(callback: CallbackQuery):
+    if not _is_allowed_user(callback.from_user.id):
+        await callback.message.answer("Доступ запрещен.")
+        await callback.answer()
+        return
+
+    # publish_now_<draft_id>_<channel_key>
+    _, _, draft_id, channel_key = callback.data.split("_", 3)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/publications",
+            json={
+                "draft_id": int(draft_id),
+                "channel": channel_key,
+                "publish_now": True,
+            },
+        )
+        if response.status_code != 200:
+            await callback.message.answer(f"Publish failed: {response.text}")
+            await callback.answer()
+            return
+        publication = response.json()
+        await callback.message.answer(
+            f"Published: publication_id={publication['id']}, "
+            f"status={publication['status']}, message_id={publication.get('message_id')}"
+        )
+    await callback.answer()
+
 @router.callback_query(F.data.startswith("reject_draft_"))
 async def reject_draft_callback(callback: CallbackQuery, state: FSMContext):
     if not _is_allowed_user(callback.from_user.id):
@@ -149,3 +230,29 @@ async def process_rejection_reason(message: types.Message, state: FSMContext):
         else:
             await message.answer(f"Failed to reject draft {draft_id}: {response.text}")
     await state.clear()
+
+
+async def _run_llm_and_report(
+    callback: CallbackQuery,
+    *,
+    draft_id: str,
+    task_type: str,
+    preset: str,
+) -> None:
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/llm/tasks",
+            json={
+                "draft_id": int(draft_id),
+                "task_type": task_type,
+                "preset": preset,
+            },
+        )
+        if response.status_code != 200:
+            await callback.message.answer(f"LLM task failed: {response.text}")
+            return
+        task = response.json()
+        await callback.message.answer(
+            f"LLM task done: id={task['id']}, status={task['status']}\n"
+            f"Result:\n{(task.get('result') or '')[:1200]}"
+        )
