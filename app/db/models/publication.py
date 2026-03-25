@@ -11,6 +11,7 @@ class Publication(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     draft_id: Mapped[int | None] = mapped_column(ForeignKey("articles_draft.id", ondelete="SET NULL"))
     channel_id: Mapped[int | None] = mapped_column(BigInteger)
+    channel_alias: Mapped[str | None] = mapped_column(Text)
     message_id: Mapped[int | None] = mapped_column(BigInteger)
     status: Mapped[str] = mapped_column(
         Text, nullable=False, default="queued", server_default=text("'queued'")
