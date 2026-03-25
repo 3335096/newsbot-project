@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.article_raw import ArticleRaw
 from app.db.models.source import Source
+from app.metrics import record_parser_stats
 from app.services.moderation_service import ModerationService
 
 try:
@@ -160,6 +161,8 @@ class ParserService:
         processed = 0
         created = 0
         drafts_created = 0
+        blocked = 0
+        flagged = 0
 
         for entry in entries:
             if not entry["url"]:
@@ -201,8 +204,11 @@ class ParserService:
                 title=title,
                 content=content,
             )
+            if moderation.flagged:
+                flagged += 1
             if moderation.blocked:
                 logger.info("Article blocked by moderation: url={}", entry["url"])
+                blocked += 1
                 continue
 
             draft, draft_created = None, False
@@ -222,6 +228,13 @@ class ParserService:
                     draft.status = "flagged"
                 db.commit()
 
+        record_parser_stats(
+            processed=processed,
+            created=created,
+            drafts_created=drafts_created,
+            blocked=blocked,
+            flagged=flagged,
+        )
         return {"processed": processed, "created": created, "drafts_created": drafts_created}
 
     @staticmethod

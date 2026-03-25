@@ -222,3 +222,59 @@
 ### Ограничения на текущем шаге
 - В текущем варианте `block` означает пропуск создания/обновления draft, но `articles_raw` всё равно сохраняется.
 - Очистка рассчитана под PostgreSQL (`interval`), для SQLite она используется только в smoke-сценариях без фактического выполнения cleanup job.
+
+---
+
+## Итерация 7 — Метрики, UX-полировка и hardening
+
+### Что сделано
+- Добавлен Prometheus-мониторинг:
+  - новый endpoint `GET /metrics`,
+  - HTTP-метрики через middleware (`method/path/status`, длительность),
+  - сервисные метрики для parser/LLM/publications/scheduler.
+- Вынесен единый модуль метрик `app/metrics.py` с helper-функциями:
+  - `observe_http_request`,
+  - `record_parser_stats`,
+  - `record_llm_task`,
+  - `record_publication_event`,
+  - `record_scheduler_job`.
+- Инструментированы основные pipeline:
+  - `ParserService.process_source` (processed/created/drafts_created/blocked/flagged),
+  - `LLMTaskService.run_task` (running/success/error),
+  - `PublisherService` (создание/пропуск/успех/ошибка публикации + число отправленных сообщений),
+  - jobs в `Scheduler` (status и duration по задачам `fetch_source`, `process_publications`, `cleanup_old_data`).
+- UX-полировка Telegram-бота:
+  - унифицированы сообщения и кнопки на русском,
+  - улучшена читаемость карточки черновика и текста ошибок,
+  - доработаны подписи меню и админ-панели.
+- Добавлены hardening-тесты pipeline модерации:
+  - новый файл `tests/services/test_parser_moderation_pipeline.py`,
+  - сценарий `block`: черновик не создается, счетчик `blocked` растет,
+  - сценарий `flag`: черновик получает `status=flagged`, сохраняются `flags`, растут метрики.
+
+### Измененные файлы (ключевые)
+- `app/main.py`
+- `app/api/routers/metrics.py`
+- `app/api/routers/__init__.py`
+- `app/metrics.py`
+- `app/services/parser_service.py`
+- `app/services/llm_task_service.py`
+- `app/services/publisher_service.py`
+- `app/services/scheduler.py`
+- `bot/handlers/start.py`
+- `bot/handlers/drafts.py`
+- `bot/handlers/admin.py`
+- `bot/keyboards/main_menu.py`
+- `tests/services/test_parser_moderation_pipeline.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+
+### Проверки
+- Unit-тесты сервисов (включая новый hardening-набор) — выполняются в рамках Iteration 7.
+- Smoke-check (imports + alembic `--sql`) — выполняется в рамках Iteration 7.
+
+### Ограничения на текущем шаге
+- Метрики не агрегируют бизнес-сущности по source_id/channel_id (умышленно, чтобы избежать высокой cardinality label-ов).
+- Endpoint `/metrics` открыт без auth в рамках MVP и должен защищаться на уровне инфраструктуры (ingress/reverse proxy/private network).

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.db.models.article_draft import ArticleDraft
 from app.db.models.article_raw import ArticleRaw
 from app.db.models.publication import Publication
+from app.metrics import record_publication_event
 TELEGRAM_MESSAGE_LIMIT = 4096
 TELEGRAM_CAPTION_LIMIT = 1024
 
@@ -45,6 +46,7 @@ class PublisherService:
             .first()
         )
         if existing and existing.status in {"queued", "scheduled", "published"}:
+            record_publication_event(event="create_skipped_existing", status=existing.status)
             return existing
 
         status = "queued" if publish_now else "scheduled"
@@ -58,6 +60,7 @@ class PublisherService:
         db.add(publication)
         db.commit()
         db.refresh(publication)
+        record_publication_event(event="created", status=status)
         return publication
 
     async def process_publication(
@@ -71,6 +74,7 @@ class PublisherService:
             publication.log = "Draft not found for publication"
             db.commit()
             db.refresh(publication)
+            record_publication_event(event="process_failed_no_draft", status=publication.status)
             return PublishResult(publication=publication, sent_message_ids=[])
 
         raw = None
@@ -121,12 +125,18 @@ class PublisherService:
             draft.status = "published"
             db.commit()
             db.refresh(publication)
+            record_publication_event(
+                event="processed",
+                status=publication.status,
+                sent_messages=len(message_ids),
+            )
             return PublishResult(publication=publication, sent_message_ids=message_ids)
         except Exception as exc:
             publication.status = "error"
             publication.log = str(exc)
             db.commit()
             db.refresh(publication)
+            record_publication_event(event="processed", status=publication.status)
             return PublishResult(publication=publication, sent_message_ids=[])
 
     async def process_due_publications(self, db: Session) -> int:

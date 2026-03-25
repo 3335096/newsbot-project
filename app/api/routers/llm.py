@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.metrics import record_llm_task
 from app.services.llm_preset_service import LLMPresetService
 from app.services.llm_task_service import LLMTaskService
 
@@ -105,6 +106,7 @@ async def run_llm_task(payload: RunTaskPayload, db: Session = Depends(get_db)):
             max_len=payload.max_len,
         )
     except ValueError as exc:
+        record_llm_task(task_type=payload.task_type, status="invalid_request")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     task = result.task

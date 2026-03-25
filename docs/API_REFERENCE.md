@@ -19,6 +19,20 @@
 }
 ```
 
+### `GET /metrics`
+
+Prometheus-метрики приложения в формате `text/plain; version=0.0.4`.
+
+Примеры метрик:
+- `newsbot_http_requests_total`
+- `newsbot_http_request_duration_seconds`
+- `newsbot_parser_events_total`
+- `newsbot_llm_tasks_total`
+- `newsbot_publication_events_total`
+- `newsbot_publication_messages_sent_total`
+- `newsbot_scheduler_job_runs_total`
+- `newsbot_scheduler_job_duration_seconds`
+
 ---
 
 ## Черновики (`/api/drafts`)

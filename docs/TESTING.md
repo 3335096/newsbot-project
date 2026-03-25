@@ -5,6 +5,9 @@
 На текущий момент в репозитории есть модульные тесты:
 
 - `tests/services/test_parser_service.py`
+- `tests/services/test_publisher_service.py`
+- `tests/services/test_moderation_service.py`
+- `tests/services/test_parser_moderation_pipeline.py`
 
 Покрытые сценарии:
 
@@ -13,11 +16,20 @@
 3. Извлечение контента по CSS-правилам.
 4. Дедупликация `articles_raw` по URL и `(source_id, hash_original)`.
 5. Проверка поведения кэша переводов на уровне пайплайна.
+6. Проверка форматирования/разбиения публикаций.
+7. Проверка правил модерации (`domain_blacklist`, `keyword_blacklist`) и toggle.
+8. Hardening-сценарии модерации parser-пайплайна:
+   - `block` блокирует создание draft,
+   - `flag` помечает draft статусом `flagged`.
 
 ## Быстрый запуск тестов
 
 ```bash
-python3 -m pytest tests/services/test_parser_service.py -q
+python3 -m pytest \
+  tests/services/test_parser_service.py \
+  tests/services/test_publisher_service.py \
+  tests/services/test_moderation_service.py \
+  tests/services/test_parser_moderation_pipeline.py -q
 ```
 
 ## Smoke-check (рекомендуется после изменений инфраструктуры)

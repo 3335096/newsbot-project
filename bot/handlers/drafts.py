@@ -27,8 +27,8 @@ def _card_text(draft: dict, view_mode: str) -> str:
         if is_original
         else draft.get("content_translated")
     ) or "—"
-    lang_line = f"{draft.get('source_language') or 'unknown'} → {draft.get('target_language') or 'ru'}"
-    mode_label = "ORIGINAL" if is_original else "TRANSLATION"
+    lang_line = f"{draft.get('source_language') or 'неизвестно'} → {draft.get('target_language') or 'ru'}"
+    mode_label = "ОРИГИНАЛ" if is_original else "ПЕРЕВОД"
     flags = draft.get("flags") or []
     flags_block = ""
     if flags:
@@ -37,34 +37,34 @@ def _card_text(draft: dict, view_mode: str) -> str:
             lines.append(
                 f"- {item.get('kind')} | {item.get('action')} | {item.get('pattern')}"
             )
-        flags_block = "\n\nModeration flags:\n" + "\n".join(lines)
+        flags_block = "\n\nФлаги модерации:\n" + "\n".join(lines)
     return (
-        f"Draft ID: {draft['id']}\n"
-        f"Status: {draft['status']}\n"
-        f"Language: {lang_line}\n"
-        f"Mode: {mode_label}\n\n"
-        f"Title: {title}\n\n"
-        f"Content: {content}"
+        f"Черновик #{draft['id']}\n"
+        f"Статус: {draft['status']}\n"
+        f"Языки: {lang_line}\n"
+        f"Режим: {mode_label}\n\n"
+        f"Заголовок: {title}\n\n"
+        f"Текст: {content}"
         f"{flags_block}"
     )
 
 
 def _card_keyboard(draft_id: int, view_mode: str) -> types.InlineKeyboardMarkup:
-    switch_label = "Show translation" if view_mode == "original" else "Show original"
+    switch_label = "Показать перевод" if view_mode == "original" else "Показать оригинал"
     channel_buttons = []
     for channel_key in settings.channel_ids.keys():
         channel_buttons.append(
-            [types.InlineKeyboardButton(text=f"Publish now: {channel_key}", callback_data=f"publish_now_{draft_id}_{channel_key}")]
+            [types.InlineKeyboardButton(text=f"Опубликовать: {channel_key}", callback_data=f"publish_now_{draft_id}_{channel_key}")]
         )
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
             [types.InlineKeyboardButton(text=switch_label, callback_data=f"toggle_view_{draft_id}_{view_mode}")],
-            [types.InlineKeyboardButton(text="Summary", callback_data=f"llm_summary_{draft_id}")],
-            [types.InlineKeyboardButton(text="Rewrite style", callback_data=f"llm_rewrite_{draft_id}")],
-            [types.InlineKeyboardButton(text="Title/Hashtags", callback_data=f"llm_title_hashtags_{draft_id}")],
+            [types.InlineKeyboardButton(text="Кратко (Summary)", callback_data=f"llm_summary_{draft_id}")],
+            [types.InlineKeyboardButton(text="Рерайт стиля", callback_data=f"llm_rewrite_{draft_id}")],
+            [types.InlineKeyboardButton(text="Заголовок/Хэштеги", callback_data=f"llm_title_hashtags_{draft_id}")],
             *channel_buttons,
-            [types.InlineKeyboardButton(text="Approve", callback_data=f"approve_draft_{draft_id}")],
-            [types.InlineKeyboardButton(text="Reject", callback_data=f"reject_draft_{draft_id}")],
+            [types.InlineKeyboardButton(text="Одобрить", callback_data=f"approve_draft_{draft_id}")],
+            [types.InlineKeyboardButton(text="Отклонить", callback_data=f"reject_draft_{draft_id}")],
         ]
     )
 
@@ -80,7 +80,7 @@ async def show_drafts(callback: CallbackQuery):
         drafts = response.json()
 
     if not drafts:
-        await callback.message.answer("No drafts available.")
+        await callback.message.answer("Черновиков пока нет.")
         await callback.answer()
         return
 
@@ -106,7 +106,7 @@ async def toggle_view_callback(callback: CallbackQuery):
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{settings.APP_BASE_URL}/api/drafts/{draft_id}")
         if response.status_code != 200:
-            await callback.message.answer(f"Failed to load draft {draft_id}: {response.text}")
+            await callback.message.answer(f"Не удалось загрузить черновик {draft_id}: {response.text}")
             await callback.answer()
             return
         draft = response.json()
@@ -128,9 +128,9 @@ async def approve_draft_callback(callback: CallbackQuery):
     async with httpx.AsyncClient() as client:
         response = await client.post(f"{settings.APP_BASE_URL}/api/drafts/{draft_id}/approve")
         if response.status_code == 200:
-            await callback.message.answer(f"Draft {draft_id} approved.")
+            await callback.message.answer(f"Черновик {draft_id} одобрен.")
         else:
-            await callback.message.answer(f"Failed to approve draft {draft_id}: {response.text}")
+            await callback.message.answer(f"Не удалось одобрить черновик {draft_id}: {response.text}")
     await callback.answer()
 
 
@@ -196,13 +196,13 @@ async def publish_now_callback(callback: CallbackQuery):
             },
         )
         if response.status_code != 200:
-            await callback.message.answer(f"Publish failed: {response.text}")
+            await callback.message.answer(f"Публикация не удалась: {response.text}")
             await callback.answer()
             return
         publication = response.json()
         await callback.message.answer(
-            f"Published: publication_id={publication['id']}, "
-            f"status={publication['status']}, message_id={publication.get('message_id')}"
+            f"Опубликовано: id={publication['id']}, "
+            f"статус={publication['status']}, message_id={publication.get('message_id')}"
         )
     await callback.answer()
 
@@ -215,7 +215,7 @@ async def reject_draft_callback(callback: CallbackQuery, state: FSMContext):
 
     draft_id = callback.data.split("_")[2]
     await state.update_data(draft_id=draft_id)
-    await callback.message.answer("Please provide a reason for rejection:")
+    await callback.message.answer("Укажите причину отклонения:")
     await state.set_state(DraftsState.waiting_for_rejection_reason)
     await callback.answer()
 
@@ -236,9 +236,9 @@ async def process_rejection_reason(message: types.Message, state: FSMContext):
             json={"reason": reason},
         )
         if response.status_code == 200:
-            await message.answer(f"Draft {draft_id} rejected with reason: {reason}")
+            await message.answer(f"Черновик {draft_id} отклонен. Причина: {reason}")
         else:
-            await message.answer(f"Failed to reject draft {draft_id}: {response.text}")
+            await message.answer(f"Не удалось отклонить черновик {draft_id}: {response.text}")
     await state.clear()
 
 
@@ -259,10 +259,10 @@ async def _run_llm_and_report(
             },
         )
         if response.status_code != 200:
-            await callback.message.answer(f"LLM task failed: {response.text}")
+            await callback.message.answer(f"LLM-задача завершилась ошибкой: {response.text}")
             return
         task = response.json()
         await callback.message.answer(
-            f"LLM task done: id={task['id']}, status={task['status']}\n"
-            f"Result:\n{(task.get('result') or '')[:1200]}"
+            f"LLM-задача выполнена: id={task['id']}, статус={task['status']}\n"
+            f"Результат:\n{(task.get('result') or '')[:1200]}"
         )

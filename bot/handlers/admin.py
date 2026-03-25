@@ -9,8 +9,8 @@ router = Router()
 def _admin_keyboard() -> types.InlineKeyboardMarkup:
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
-            [types.InlineKeyboardButton(text="LLM Presets", callback_data="admin_llm_presets")],
-            [types.InlineKeyboardButton(text="Moderation Rules", callback_data="admin_moderation_rules")],
+            [types.InlineKeyboardButton(text="LLM-пресеты", callback_data="admin_llm_presets")],
+            [types.InlineKeyboardButton(text="Правила модерации", callback_data="admin_moderation_rules")],
         ]
     )
 
@@ -20,19 +20,19 @@ def _preset_action_keyboard(preset_name: str) -> types.InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 types.InlineKeyboardButton(
-                    text="Edit system prompt",
+                    text="Изменить system prompt",
                     callback_data=f"admin_preset_edit_system_{preset_name}",
                 )
             ],
             [
                 types.InlineKeyboardButton(
-                    text="Edit user template",
+                    text="Изменить user template",
                     callback_data=f"admin_preset_edit_user_{preset_name}",
                 )
             ],
             [
                 types.InlineKeyboardButton(
-                    text="Toggle enabled",
+                    text="Вкл/выкл",
                     callback_data=f"admin_preset_toggle_{preset_name}",
                 )
             ],
@@ -42,7 +42,7 @@ def _preset_action_keyboard(preset_name: str) -> types.InlineKeyboardMarkup:
 
 @router.message(Command("admin"), F.from_user.id.in_(settings.admin_ids))
 async def admin_panel(message: types.Message):
-    await message.answer("Welcome to the admin panel!", reply_markup=_admin_keyboard())
+    await message.answer("Панель администратора.", reply_markup=_admin_keyboard())
 
 
 @router.callback_query(F.data == "admin_llm_presets", F.from_user.id.in_(settings.admin_ids))
@@ -50,22 +50,22 @@ async def admin_llm_presets(callback: types.CallbackQuery):
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{settings.APP_BASE_URL}/api/llm/presets")
         if response.status_code != 200:
-            await callback.message.answer(f"Failed to load presets: {response.text}")
+            await callback.message.answer(f"Не удалось загрузить пресеты: {response.text}")
             await callback.answer()
             return
         presets = response.json()
 
     if not presets:
-        await callback.message.answer("No presets available.")
+        await callback.message.answer("Пресеты не найдены.")
         await callback.answer()
         return
 
     for preset in presets:
         text = (
-            f"Preset: {preset['name']}\n"
-            f"Task type: {preset['task_type']}\n"
-            f"Model: {preset.get('default_model') or '-'}\n"
-            f"Enabled: {preset['enabled']}"
+            f"Пресет: {preset['name']}\n"
+            f"Тип задачи: {preset['task_type']}\n"
+            f"Модель: {preset.get('default_model') or '-'}\n"
+            f"Включен: {preset['enabled']}"
         )
         await callback.message.answer(
             text,
@@ -79,36 +79,36 @@ async def admin_moderation_rules(callback: types.CallbackQuery):
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{settings.APP_BASE_URL}/api/moderation/rules")
         if response.status_code != 200:
-            await callback.message.answer(f"Failed to load moderation rules: {response.text}")
+            await callback.message.answer(f"Не удалось загрузить правила модерации: {response.text}")
             await callback.answer()
             return
         rules = response.json()
 
     if not rules:
         await callback.message.answer(
-            "No moderation rules yet.\n"
-            "Use:\n"
+            "Правила модерации ещё не добавлены.\n"
+            "Используйте:\n"
             "/rule_add <kind> <pattern> <action> [comment]\n"
-            "kind: domain_blacklist|keyword_blacklist\n"
-            "action: block|flag"
+            "Типы правил: domain_blacklist | keyword_blacklist\n"
+            "Действия: block | flag"
         )
         await callback.answer()
         return
 
     for rule in rules:
         text = (
-            f"Rule #{rule['id']}\n"
-            f"kind: {rule['kind']}\n"
-            f"pattern: {rule['pattern']}\n"
-            f"action: {rule['action']}\n"
-            f"enabled: {rule['enabled']}\n"
-            f"comment: {rule.get('comment') or '-'}"
+            f"Правило #{rule['id']}\n"
+            f"Тип: {rule['kind']}\n"
+            f"Шаблон: {rule['pattern']}\n"
+            f"Действие: {rule['action']}\n"
+            f"Включено: {rule['enabled']}\n"
+            f"Комментарий: {rule.get('comment') or '-'}"
         )
         kb = types.InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     types.InlineKeyboardButton(
-                        text="Toggle rule",
+                        text="Переключить правило",
                         callback_data=f"admin_rule_toggle_{rule['id']}",
                     )
                 ]
@@ -117,9 +117,9 @@ async def admin_moderation_rules(callback: types.CallbackQuery):
         await callback.message.answer(text, reply_markup=kb)
 
     await callback.message.answer(
-        "Add rule command:\n"
+        "Команда добавления правила:\n"
         "/rule_add <kind> <pattern> <action> [comment]\n"
-        "Example:\n"
+        "Пример:\n"
         "/rule_add keyword_blacklist bitcoin block Спам по крипте"
     )
     await callback.answer()
@@ -131,12 +131,12 @@ async def admin_toggle_rule(callback: types.CallbackQuery):
     async with httpx.AsyncClient() as client:
         response = await client.post(f"{settings.APP_BASE_URL}/api/moderation/rules/{rule_id}/toggle")
         if response.status_code != 200:
-            await callback.message.answer(f"Failed to toggle rule: {response.text}")
+            await callback.message.answer(f"Не удалось переключить правило: {response.text}")
             await callback.answer()
             return
         rule = response.json()
     await callback.message.answer(
-        f"Rule #{rule['id']} enabled={rule['enabled']}\n"
+        f"Правило #{rule['id']} включено: {rule['enabled']}\n"
         f"{rule['kind']} | {rule['action']} | {rule['pattern']}"
     )
     await callback.answer()
@@ -148,10 +148,10 @@ async def admin_rule_add(message: types.Message):
     parts = message.text.split(maxsplit=4) if message.text else []
     if len(parts) < 4:
         await message.answer(
-            "Usage:\n"
+            "Использование:\n"
             "/rule_add <kind> <pattern> <action> [comment]\n"
-            "kind: domain_blacklist|keyword_blacklist\n"
-            "action: block|flag"
+            "Типы правил: domain_blacklist | keyword_blacklist\n"
+            "Действия: block | flag"
         )
         return
     kind, pattern, action = parts[1], parts[2], parts[3]
@@ -169,11 +169,11 @@ async def admin_rule_add(message: types.Message):
             },
         )
         if response.status_code != 200:
-            await message.answer(f"Failed: {response.text}")
+            await message.answer(f"Ошибка: {response.text}")
             return
         rule = response.json()
         await message.answer(
-            f"Rule created #{rule['id']}: {rule['kind']} | {rule['action']} | {rule['pattern']}"
+            f"Правило создано #{rule['id']}: {rule['kind']} | {rule['action']} | {rule['pattern']}"
         )
 
 
@@ -183,12 +183,12 @@ async def admin_toggle_preset(callback: types.CallbackQuery):
     async with httpx.AsyncClient() as client:
         presets_resp = await client.get(f"{settings.APP_BASE_URL}/api/llm/presets")
         if presets_resp.status_code != 200:
-            await callback.message.answer(f"Failed to load preset: {presets_resp.text}")
+            await callback.message.answer(f"Не удалось загрузить пресет: {presets_resp.text}")
             await callback.answer()
             return
         preset = next((p for p in presets_resp.json() if p["name"] == preset_name), None)
         if not preset:
-            await callback.message.answer(f"Preset '{preset_name}' not found.")
+            await callback.message.answer(f"Пресет '{preset_name}' не найден.")
             await callback.answer()
             return
 
@@ -197,13 +197,13 @@ async def admin_toggle_preset(callback: types.CallbackQuery):
             json={"enabled": not preset["enabled"]},
         )
         if update_resp.status_code != 200:
-            await callback.message.answer(f"Failed to update preset: {update_resp.text}")
+            await callback.message.answer(f"Не удалось обновить пресет: {update_resp.text}")
             await callback.answer()
             return
         updated = update_resp.json()
 
     await callback.message.answer(
-        f"Preset '{preset_name}' enabled={updated['enabled']}",
+        f"Пресет '{preset_name}' включен={updated['enabled']}",
         reply_markup=_preset_action_keyboard(preset_name),
     )
     await callback.answer()
@@ -215,7 +215,7 @@ async def admin_toggle_preset(callback: types.CallbackQuery):
 async def admin_edit_system_hint(callback: types.CallbackQuery):
     preset_name = callback.data.replace("admin_preset_edit_system_", "", 1)
     await callback.message.answer(
-        f"To update system prompt run:\n"
+        f"Чтобы обновить system prompt, выполните:\n"
         f"/preset_system {preset_name} <new prompt text>"
     )
     await callback.answer()
@@ -227,7 +227,7 @@ async def admin_edit_system_hint(callback: types.CallbackQuery):
 async def admin_edit_user_hint(callback: types.CallbackQuery):
     preset_name = callback.data.replace("admin_preset_edit_user_", "", 1)
     await callback.message.answer(
-        f"To update user template run:\n"
+        f"Чтобы обновить user template, выполните:\n"
         f"/preset_user {preset_name} <new template text>"
     )
     await callback.answer()
@@ -237,7 +237,7 @@ async def admin_edit_user_hint(callback: types.CallbackQuery):
 async def admin_update_system_prompt(message: types.Message):
     parts = message.text.split(maxsplit=2) if message.text else []
     if len(parts) < 3:
-        await message.answer("Usage: /preset_system <preset_name> <new system prompt>")
+        await message.answer("Использование: /preset_system <preset_name> <new system prompt>")
         return
     preset_name, new_prompt = parts[1], parts[2]
     async with httpx.AsyncClient() as client:
@@ -246,16 +246,16 @@ async def admin_update_system_prompt(message: types.Message):
             json={"system_prompt": new_prompt},
         )
         if response.status_code != 200:
-            await message.answer(f"Failed: {response.text}")
+            await message.answer(f"Ошибка: {response.text}")
             return
-        await message.answer(f"System prompt updated for preset '{preset_name}'.")
+        await message.answer(f"System prompt обновлен для пресета '{preset_name}'.")
 
 
 @router.message(Command("preset_user"), F.from_user.id.in_(settings.admin_ids))
 async def admin_update_user_template(message: types.Message):
     parts = message.text.split(maxsplit=2) if message.text else []
     if len(parts) < 3:
-        await message.answer("Usage: /preset_user <preset_name> <new user template>")
+        await message.answer("Использование: /preset_user <preset_name> <new user template>")
         return
     preset_name, new_template = parts[1], parts[2]
     async with httpx.AsyncClient() as client:
@@ -264,9 +264,9 @@ async def admin_update_user_template(message: types.Message):
             json={"user_prompt_template": new_template},
         )
         if response.status_code != 200:
-            await message.answer(f"Failed: {response.text}")
+            await message.answer(f"Ошибка: {response.text}")
             return
-        await message.answer(f"User template updated for preset '{preset_name}'.")
+        await message.answer(f"User template обновлен для пресета '{preset_name}'.")
 
 
 @router.message(Command("admin"))
