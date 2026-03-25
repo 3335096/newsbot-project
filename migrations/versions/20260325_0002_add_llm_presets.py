@@ -19,22 +19,38 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    context = op.get_context()
+    dialect_name = context.dialect.name
+    is_offline = context.as_sql
     op.execute(
         "UPDATE articles_draft SET status = 'flagged' WHERE status NOT IN "
         "('new','flagged','approved','rejected','published')"
     )
-    op.alter_column(
-        "articles_draft",
-        "status",
-        existing_type=sa.Text(),
-        server_default=sa.text("'new'"),
-        nullable=False,
-    )
-    op.create_check_constraint(
-        "articles_draft_status_valid",
-        "articles_draft",
-        "status IN ('new','flagged','approved','rejected','published')",
-    )
+    if dialect_name == "sqlite" and not is_offline:
+        with op.batch_alter_table("articles_draft", recreate="always") as batch_op:
+            batch_op.alter_column(
+                "status",
+                existing_type=sa.Text(),
+                server_default=sa.text("'new'"),
+                nullable=False,
+            )
+            batch_op.create_check_constraint(
+                "articles_draft_status_valid",
+                "status IN ('new','flagged','approved','rejected','published')",
+            )
+    elif dialect_name != "sqlite":
+        op.alter_column(
+            "articles_draft",
+            "status",
+            existing_type=sa.Text(),
+            server_default=sa.text("'new'"),
+            nullable=False,
+        )
+        op.create_check_constraint(
+            "articles_draft_status_valid",
+            "articles_draft",
+            "status IN ('new','flagged','approved','rejected','published')",
+        )
     op.create_table(
         "llm_presets",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -91,8 +107,15 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("llm_presets")
-    op.drop_constraint(
-        "articles_draft_status_valid",
-        "articles_draft",
-        type_="check",
-    )
+    context = op.get_context()
+    dialect_name = context.dialect.name
+    is_offline = context.as_sql
+    if dialect_name == "sqlite" and not is_offline:
+        with op.batch_alter_table("articles_draft", recreate="always") as batch_op:
+            batch_op.drop_constraint("articles_draft_status_valid", type_="check")
+    else:
+        op.drop_constraint(
+            "articles_draft_status_valid",
+            "articles_draft",
+            type_="check",
+        )
