@@ -14,6 +14,7 @@ class LLMTask(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         Text, nullable=False, default="queued", server_default=text("'queued'")
     )
+    queue_job_id: Mapped[str | None] = mapped_column(Text)
     prompt: Mapped[str | None] = mapped_column(Text)
     result: Mapped[str | None] = mapped_column(Text)
     tokens_in: Mapped[int | None] = mapped_column(Integer)

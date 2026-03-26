@@ -24,7 +24,7 @@ class LLMTaskService:
         self.llm_client = LLMClient()
         self.preset_service = LLMPresetService()
 
-    async def run_task(
+    def create_task(
         self,
         db: Session,
         *,
@@ -33,7 +33,7 @@ class LLMTaskService:
         preset_name: str,
         model: str | None = None,
         max_len: int = 700,
-    ) -> LLMTaskResult:
+    ) -> LLMTask:
         draft = db.query(ArticleDraft).filter(ArticleDraft.id == draft_id).first()
         if not draft:
             raise ValueError("Draft not found")
@@ -63,13 +63,74 @@ class LLMTaskService:
             task_type=task_type,
             preset=preset_name,
             model=selected_model,
-            status="running",
+            status="queued",
             prompt=user_prompt,
         )
         db.add(llm_task)
         db.commit()
         db.refresh(llm_task)
-        record_llm_task(task_type=task_type, status="running")
+        record_llm_task(task_type=task_type, status="queued")
+        return llm_task
+
+    async def run_task(
+        self,
+        db: Session,
+        *,
+        draft_id: int,
+        task_type: str,
+        preset_name: str,
+        model: str | None = None,
+        max_len: int = 700,
+        existing_task: LLMTask | None = None,
+    ) -> LLMTaskResult:
+        draft = db.query(ArticleDraft).filter(ArticleDraft.id == draft_id).first()
+        if not draft:
+            raise ValueError("Draft not found")
+
+        preset = self.preset_service.get_preset_or_raise(db, preset_name)
+        if preset.task_type != task_type:
+            raise ValueError("Preset task_type does not match requested task_type")
+
+        content = draft.content_translated or ""
+        user_prompt = (
+            preset.user_prompt_template
+            .replace("{{target_lang}}", draft.target_language)
+            .replace("{{content}}", content)
+            .replace("{{max_len}}", str(max_len))
+        )
+        default_by_task = {
+            "summary": settings.LLM_DEFAULT_MODEL_SUMMARY,
+            "rewrite": settings.LLM_DEFAULT_MODEL_REWRITE,
+            "title_hashtags": settings.LLM_DEFAULT_MODEL_REWRITE,
+        }
+        selected_model = model or preset.default_model or default_by_task.get(
+            task_type, settings.LLM_DEFAULT_MODEL_REWRITE
+        )
+
+        llm_task = existing_task
+        if llm_task is None:
+            llm_task = LLMTask(
+                draft_id=draft.id,
+                task_type=task_type,
+                preset=preset_name,
+                model=selected_model,
+                status="running",
+                prompt=user_prompt,
+            )
+            db.add(llm_task)
+            db.commit()
+            db.refresh(llm_task)
+            record_llm_task(task_type=task_type, status="running")
+        else:
+            llm_task.draft_id = draft.id
+            llm_task.task_type = task_type
+            llm_task.preset = preset_name
+            llm_task.model = selected_model
+            llm_task.prompt = user_prompt
+            llm_task.status = "running"
+            llm_task.error = None
+            db.commit()
+            db.refresh(llm_task)
 
         try:
             response = await self.llm_client.generate_text(
@@ -80,6 +141,7 @@ class LLMTaskService:
             generated = response.get("choices", [{}])[0].get("message", {}).get("content", "")
             llm_task.result = generated
             llm_task.status = "success"
+            llm_task.queue_job_id = None
             self._apply_result_to_draft(draft, task_type, generated)
             db.commit()
             db.refresh(llm_task)
@@ -87,6 +149,7 @@ class LLMTaskService:
             return LLMTaskResult(task=llm_task, applied_to_draft=True)
         except Exception as exc:
             llm_task.status = "error"
+            llm_task.queue_job_id = None
             llm_task.error = str(exc)
             db.commit()
             db.refresh(llm_task)

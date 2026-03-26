@@ -1,6 +1,5 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from aiogram import Bot
 from loguru import logger
 import time
 from sqlalchemy import text
@@ -10,8 +9,7 @@ from app.metrics import record_scheduler_job
 from app.db.models.source import Source
 from app.db.session import SessionLocal
 from app.services.parser_service import ParserService
-from app.services.publisher_service import PublisherService
-from core.config import settings
+from app.services.queue_dispatcher import enqueue_due_publications
 
 class Scheduler:
     def __init__(self):
@@ -25,6 +23,20 @@ class Scheduler:
     def add_job(self, func, trigger, id, **kwargs):
         self.scheduler.add_job(func, trigger, id=id, **kwargs)
         logger.info(f"Added job {id}")
+
+    def remove_source_job(self, source_id: int) -> None:
+        job_id = f"fetch_source_{source_id}"
+        try:
+            self.scheduler.remove_job(job_id)
+            logger.info("Removed source job {}", job_id)
+        except Exception:
+            # It's okay if the job does not exist.
+            logger.debug("Source job {} was not present", job_id)
+
+    def sync_source_job(self, source_id: int, cron_schedule: str | None, enabled: bool) -> None:
+        self.remove_source_job(source_id)
+        if enabled and cron_schedule:
+            self.schedule_source_fetching(source_id, cron_schedule)
 
     def schedule_source_fetching(self, source_id: int, cron_schedule: str):
         async def fetch_source_job():
@@ -79,12 +91,10 @@ class Scheduler:
             started = time.monotonic()
             status = "success"
             db: Session = SessionLocal()
-            bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-            publisher = PublisherService(bot)
             try:
-                processed = await publisher.process_due_publications(db)
-                if processed:
-                    logger.info("Processed due publications: {}", processed)
+                enqueued = enqueue_due_publications(db)
+                if enqueued:
+                    logger.info("Enqueued due publications: {}", enqueued)
             except Exception as exc:
                 status = "error"
                 logger.exception("Scheduled publication job failed: {}", exc)
@@ -94,7 +104,6 @@ class Scheduler:
                     status=status,
                     duration_seconds=time.monotonic() - started,
                 )
-                await bot.session.close()
                 db.close()
 
         self.add_job(

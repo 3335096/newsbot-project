@@ -104,7 +104,7 @@ Prometheus-метрики приложения в формате `text/plain; ve
 
 ### `POST /api/llm/tasks`
 
-Запуск LLM-задачи для черновика.
+Постановка LLM-задачи для черновика в очередь (асинхронно).
 
 **Тело запроса:**
 
@@ -133,11 +133,90 @@ Prometheus-метрики приложения в формате `text/plain; ve
   "task_type": "summary",
   "preset": "summary",
   "model": "openai/gpt-4o-mini",
-  "status": "success",
-  "result": "...",
+  "status": "queued",
+  "result": null,
   "error": null
 }
 ```
+
+### `GET /api/llm/tasks/{task_id}`
+
+Получение актуального статуса и результата LLM-задачи.
+
+### `POST /api/llm/tasks/{task_id}/retry`
+
+Повторная постановка завершенной (`success`) или ошибочной (`error`) задачи в очередь.
+
+---
+
+## Публикации (`/api/publications`)
+
+### `POST /api/publications`
+
+Создание публикации. При `publish_now=true` публикация ставится в очередь worker-а.
+
+### `GET /api/publications/{publication_id}`
+
+Получение статуса публикации.
+
+### `POST /api/publications/{publication_id}/retry`
+
+Повторная постановка публикации в очередь (для `error`/`queued`/`scheduled`).
+
+---
+
+## Источники (`/api/sources`)
+
+### `GET /api/sources`
+
+Список источников (сортировка по `id ASC`).
+
+### `GET /api/sources/{source_id}`
+
+Карточка конкретного источника.
+
+### `POST /api/sources`
+
+Создание источника.
+
+Поддерживаемые поля:
+- `name`
+- `type` (`rss` | `site`)
+- `url`
+- `enabled`
+- `schedule_cron` (cron-expression в формате crontab)
+- `translate_enabled`
+- `default_target_language`
+- `extraction_rules` (JSON)
+
+При некорректном `schedule_cron` возвращается `400`.
+
+### `PUT /api/sources/{source_id}`
+
+Обновление источника (частичное).
+
+При изменении `enabled`/`schedule_cron` выполняется синхронизация scheduler job:
+- job удаляется, если источник выключен или cron пустой,
+- job пересоздается, если источник включен и cron валиден.
+
+### `DELETE /api/sources/{source_id}`
+
+Удаление источника.
+
+Перед удалением удаляется связанный scheduler job `fetch_source_{id}`.
+
+### `POST /api/sources/{source_id}/parse-now`
+
+Ручной запуск парсинга источника прямо сейчас.
+
+Ответ:
+- `source_id`
+- `status`
+- `processed`
+- `created`
+- `drafts_created`
+
+Если источник выключен — `409`.
 
 ---
 
