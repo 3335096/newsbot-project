@@ -165,6 +165,61 @@ Prometheus-метрики приложения в формате `text/plain; ve
 
 ---
 
+## Источники (`/api/sources`)
+
+### `GET /api/sources`
+
+Список источников (сортировка по `id ASC`).
+
+### `GET /api/sources/{source_id}`
+
+Карточка конкретного источника.
+
+### `POST /api/sources`
+
+Создание источника.
+
+Поддерживаемые поля:
+- `name`
+- `type` (`rss` | `site`)
+- `url`
+- `enabled`
+- `schedule_cron` (cron-expression в формате crontab)
+- `translate_enabled`
+- `default_target_language`
+- `extraction_rules` (JSON)
+
+При некорректном `schedule_cron` возвращается `400`.
+
+### `PUT /api/sources/{source_id}`
+
+Обновление источника (частичное).
+
+При изменении `enabled`/`schedule_cron` выполняется синхронизация scheduler job:
+- job удаляется, если источник выключен или cron пустой,
+- job пересоздается, если источник включен и cron валиден.
+
+### `DELETE /api/sources/{source_id}`
+
+Удаление источника.
+
+Перед удалением удаляется связанный scheduler job `fetch_source_{id}`.
+
+### `POST /api/sources/{source_id}/parse-now`
+
+Ручной запуск парсинга источника прямо сейчас.
+
+Ответ:
+- `source_id`
+- `status`
+- `processed`
+- `created`
+- `drafts_created`
+
+Если источник выключен — `409`.
+
+---
+
 ## Bot webhook
 
 ### `POST /bot/webhook`

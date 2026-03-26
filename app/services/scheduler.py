@@ -24,6 +24,20 @@ class Scheduler:
         self.scheduler.add_job(func, trigger, id=id, **kwargs)
         logger.info(f"Added job {id}")
 
+    def remove_source_job(self, source_id: int) -> None:
+        job_id = f"fetch_source_{source_id}"
+        try:
+            self.scheduler.remove_job(job_id)
+            logger.info("Removed source job {}", job_id)
+        except Exception:
+            # It's okay if the job does not exist.
+            logger.debug("Source job {} was not present", job_id)
+
+    def sync_source_job(self, source_id: int, cron_schedule: str | None, enabled: bool) -> None:
+        self.remove_source_job(source_id)
+        if enabled and cron_schedule:
+            self.schedule_source_fetching(source_id, cron_schedule)
+
     def schedule_source_fetching(self, source_id: int, cron_schedule: str):
         async def fetch_source_job():
             started = time.monotonic()

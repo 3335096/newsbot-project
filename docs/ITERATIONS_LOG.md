@@ -335,3 +335,46 @@
 ### Ограничения на текущем шаге
 - В MVP выбран RQ без отдельного persistent result backend (используется Redis result TTL).
 - Управление очередями (dead letter/priority queues) пока не выделено в отдельный админ-интерфейс.
+
+---
+
+## Итерация 9 — Управление источниками (API + bot + ручной trigger)
+
+### Что сделано
+- Добавлен API-роутер источников `app/api/routers/sources.py`:
+  - `GET /api/sources` — список источников,
+  - `GET /api/sources/{id}` — карточка источника,
+  - `POST /api/sources` — создание источника,
+  - `PUT /api/sources/{id}` — обновление источника,
+  - `DELETE /api/sources/{id}` — удаление источника,
+  - `POST /api/sources/{id}/parse-now` — ручной запуск парсинга выбранного источника.
+- Добавлена валидация cron-расписания при create/update:
+  - проверка через `apscheduler.CronTrigger.from_crontab`,
+  - при невалидном выражении возвращается `400 Invalid cron expression`.
+- Добавлена синхронизация scheduler-job для источников:
+  - `Scheduler.sync_source_job(source_id, cron, enabled)` — remove+reschedule,
+  - `Scheduler.remove_source_job(source_id)` — удаление job по id `fetch_source_{id}`,
+  - вызов sync при create/update/delete источника через API.
+- Подключен API sources в FastAPI-приложение:
+  - экспорт в `app/api/routers/__init__.py`,
+  - `app.include_router(sources.router, prefix="/api")` в `app/main.py`.
+- Реализован bot-раздел `Источники`:
+  - новый handler `bot/handlers/sources.py`,
+  - `show_sources` — просмотр списка источников,
+  - `source_parse_now_*` — запуск парсинга вручную из бота,
+  - `source_toggle_*` — включение/выключение источника,
+  - подключение router в `bot/main.py` и `bot/handlers/__init__.py`.
+
+### Тесты и проверки
+- Добавлены API-тесты для источников:
+  - `tests/services/test_sources_router.py`,
+  - сценарии:
+    - reject невалидного cron (`400`),
+    - create + parse-now (с моком parser stats),
+    - update enabled с проверкой вызова scheduler sync,
+    - parse-now для disabled source (`409`).
+- Обновлены docs по API/bot/testing/deploy для нового слоя sources.
+
+### Ограничения на текущем шаге
+- В bot-интерфейсе управления источниками пока реализованы базовые операции (просмотр, toggle, parse-now); создание/редактирование через FSM-команды будет расширено в следующих шагах.
+- Ручной `parse-now` выполняется синхронно в контексте API-запроса и рассчитан на точечные ручные запуски.

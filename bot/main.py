@@ -3,7 +3,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from core.config import settings
-from bot.handlers import start, admin, drafts
+from bot.handlers import admin, drafts, sources, start
 
 async def main():
     logging.basicConfig(level=logging.INFO)
@@ -14,6 +14,7 @@ async def main():
     dp.include_router(start.router)
     dp.include_router(admin.router)
     dp.include_router(drafts.router)
+    dp.include_router(sources.router)
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)

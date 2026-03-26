@@ -82,6 +82,19 @@
   - `newsbot_scheduler_job_runs_total`
   - `newsbot_scheduler_job_duration_seconds`
 
+### Управление источниками (Iteration 9)
+
+- API управления источниками:
+  - `GET /api/sources`
+  - `GET /api/sources/{id}`
+  - `POST /api/sources`
+  - `PUT /api/sources/{id}`
+  - `DELETE /api/sources/{id}`
+  - `POST /api/sources/{id}/parse-now`
+- Cron-выражения валидируются на этапе create/update.
+- При изменении источника (`enabled`/`schedule_cron`) scheduler автоматически
+  синхронизирует job `fetch_source_{id}`.
+
 ## 5. Управление доступом
 
 - Белый список:

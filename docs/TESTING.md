@@ -9,6 +9,7 @@
 - `tests/services/test_moderation_service.py`
 - `tests/services/test_parser_moderation_pipeline.py`
 - `tests/services/test_queue_dispatcher.py`
+- `tests/services/test_sources_router.py`
 
 Покрытые сценарии:
 
@@ -26,6 +27,11 @@
    - постановка `queued` и `scheduled(due)` публикаций в очередь,
    - пропуск публикаций с future `scheduled_at`,
    - проставление `queue_job_id`.
+10. Sources API:
+   - валидация cron при создании/обновлении источника,
+   - ручной trigger `parse-now`,
+   - отказ `409` для disabled источника,
+   - вызов синхронизации scheduler job при create/update.
 
 ## Быстрый запуск тестов
 
@@ -35,7 +41,8 @@ python3 -m pytest \
   tests/services/test_publisher_service.py \
   tests/services/test_moderation_service.py \
   tests/services/test_parser_moderation_pipeline.py \
-  tests/services/test_queue_dispatcher.py -q
+  tests/services/test_queue_dispatcher.py \
+  tests/services/test_sources_router.py -q
 ```
 
 ## Smoke-check (рекомендуется после изменений инфраструктуры)
