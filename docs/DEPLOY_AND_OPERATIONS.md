@@ -54,17 +54,32 @@
   - `GET /metrics`
   - формат: `text/plain; version=0.0.4` (prometheus-client)
 
-### Очереди и асинхронные задачи (Iteration 8)
+### Очереди и асинхронные задачи (Iteration 8/10)
 
 - Брокер: Redis (`REDIS_URL`)
 - Очереди:
   - `QUEUE_LLM_NAME` (по умолчанию `llm`)
   - `QUEUE_PUBLICATIONS_NAME` (по умолчанию `publications`)
+  - `QUEUE_FAILED_NAME` (по умолчанию `failed`)
 - Worker:
   - `python -m worker`
 - Retry:
   - на уровне RQ (`QUEUE_JOB_RETRIES`)
   - интервалы retry задаются в приложении (5s, 15s, 30s).
+- Worker heartbeat:
+  - `WORKER_HEARTBEAT_TTL_SECONDS`
+  - endpoint-ы health/queue используют heartbeat для статуса worker.
+
+### Reliability и queue operations (Iteration 10)
+
+- Queue observability API:
+  - `GET /api/queue/stats`
+- Ручной requeue failed jobs:
+  - `POST /api/queue/failed/{job_id}/requeue`
+- Дополнительные health endpoints:
+  - `GET /health/ready`
+  - `GET /health/live`
+- При фатальных ошибках job marker добавляется в `failed` queue для операционного requeue.
 
 ### Что мониторить в первую очередь
 

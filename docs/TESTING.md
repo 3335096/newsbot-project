@@ -9,6 +9,8 @@
 - `tests/services/test_moderation_service.py`
 - `tests/services/test_parser_moderation_pipeline.py`
 - `tests/services/test_queue_dispatcher.py`
+- `tests/services/test_queue_dispatcher_requeue.py`
+- `tests/services/test_queue_reliability.py`
 - `tests/services/test_sources_router.py`
 
 Покрытые сценарии:
@@ -32,6 +34,10 @@
    - ручной trigger `parse-now`,
    - отказ `409` для disabled источника,
    - вызов синхронизации scheduler job при create/update.
+11. Queue reliability:
+   - requeue логика только для failed-like статусов (`failed/stopped/canceled`),
+   - worker heartbeat в Redis и проверка `worker_alive`,
+   - queue-admin stats (`redis_ok`, snapshots по очередям).
 
 ## Быстрый запуск тестов
 
@@ -42,6 +48,8 @@ python3 -m pytest \
   tests/services/test_moderation_service.py \
   tests/services/test_parser_moderation_pipeline.py \
   tests/services/test_queue_dispatcher.py \
+  tests/services/test_queue_dispatcher_requeue.py \
+  tests/services/test_queue_reliability.py \
   tests/services/test_sources_router.py -q
 ```
 

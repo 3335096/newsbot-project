@@ -49,6 +49,18 @@ SCHEDULER_JOB_DURATION_SECONDS = Histogram(
     ["job_name"],
 )
 
+QUEUE_EVENTS_TOTAL = Counter(
+    "newsbot_queue_events_total",
+    "Queue operational events.",
+    ["event", "queue_name"],
+)
+
+QUEUE_DEPTH = Histogram(
+    "newsbot_queue_depth",
+    "Observed queue depth samples.",
+    ["queue_name"],
+)
+
 
 def observe_http_request(method: str, path: str, status_code: int, duration_seconds: float) -> None:
     method_label = (method or "UNKNOWN").upper()
@@ -107,3 +119,14 @@ def record_scheduler_job(job_name: str, status: str, duration_seconds: float) ->
     status_label = status or "unknown"
     SCHEDULER_JOB_RUNS_TOTAL.labels(job_name=job_label, status=status_label).inc()
     SCHEDULER_JOB_DURATION_SECONDS.labels(job_name=job_label).observe(max(duration_seconds, 0.0))
+
+
+def record_queue_event(event: str, queue_name: str) -> None:
+    QUEUE_EVENTS_TOTAL.labels(
+        event=event or "unknown",
+        queue_name=queue_name or "unknown",
+    ).inc()
+
+
+def observe_queue_depth(queue_name: str, depth: int) -> None:
+    QUEUE_DEPTH.labels(queue_name=queue_name or "unknown").observe(max(depth, 0))

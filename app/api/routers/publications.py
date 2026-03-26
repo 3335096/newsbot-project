@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.publication import Publication
 from app.db.session import get_db
+from app.queue import fetch_job, get_failed_queue
 from app.services.publisher_service import PublisherService
 from app.services.queue_dispatcher import enqueue_publication
 
@@ -53,6 +54,44 @@ async def create_publication(payload: PublicationCreatePayload, db: Session = De
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    return {
+        "id": publication.id,
+        "draft_id": publication.draft_id,
+        "channel_id": publication.channel_id,
+        "message_id": publication.message_id,
+        "status": publication.status,
+        "scheduled_at": publication.scheduled_at,
+        "published_at": publication.published_at,
+        "target_language": publication.target_language,
+        "log": publication.log,
+    }
+
+
+@router.post("/{publication_id}/requeue-failed", response_model=PublicationOut)
+async def requeue_failed_publication(
+    publication_id: int,
+    payload: RetryPublicationPayload,
+    db: Session = Depends(get_db),
+):
+    publication = db.query(Publication).filter(Publication.id == publication_id).first()
+    if not publication:
+        raise HTTPException(status_code=404, detail="Publication not found")
+    if publication.status != "error":
+        raise HTTPException(status_code=409, detail="Only error publications can be requeued from failed queue")
+
+    failed_queue = get_failed_queue()
+    markers = [job for job in failed_queue.jobs if f"publication_{publication_id}" in (job.description or "")]
+    if not markers and not payload.force:
+        raise HTTPException(status_code=404, detail="No failed marker found for publication")
+
+    publication.status = "queued"
+    publication.queue_job_id = None
+    publication.log = "Requeued from failed queue"
+    db.commit()
+    db.refresh(publication)
+
+    enqueue_publication(db, publication, force=True)
+    db.refresh(publication)
     return {
         "id": publication.id,
         "draft_id": publication.draft_id,

@@ -19,6 +19,15 @@
 }
 ```
 
+### `GET /health/ready`
+
+Readiness endpoint для проверки готовности async-контура:
+- доступность Redis (`redis.ok`)
+- состояние worker heartbeat (`worker.alive`, `worker.last_seen`)
+- краткая статистика очередей (`llm`, `publications`, `failed`)
+
+Если Redis недоступен, статус становится `degraded`.
+
 ### `GET /metrics`
 
 Prometheus-метрики приложения в формате `text/plain; version=0.0.4`.
@@ -147,6 +156,9 @@ Prometheus-метрики приложения в формате `text/plain; ve
 
 Повторная постановка завершенной (`success`) или ошибочной (`error`) задачи в очередь.
 
+Если у задачи есть `queue_job_id`, endpoint сначала пытается requeue существующего failed/stopped/canceled job.
+Если requeue невозможен — задача ставится заново обычным enqueue.
+
 ---
 
 ## Публикации (`/api/publications`)
@@ -162,6 +174,37 @@ Prometheus-метрики приложения в формате `text/plain; ve
 ### `POST /api/publications/{publication_id}/retry`
 
 Повторная постановка публикации в очередь (для `error`/`queued`/`scheduled`).
+
+Если у публикации есть `queue_job_id`, endpoint сначала пытается requeue существующего failed/stopped/canceled job.
+Если requeue невозможен — публикация ставится заново обычным enqueue.
+
+---
+
+## Queue Admin (`/api/queue`)
+
+### `GET /api/queue/stats`
+
+Операционная статистика очередей:
+- `llm`
+- `publications`
+- `failed`
+
+Возвращает:
+- `queued/started/finished/failed/deferred/scheduled` по каждой очереди
+- `redis_ok`
+- `worker_alive`
+- `worker_last_seen_ts`
+- `worker_last_seen_iso`
+
+### `POST /api/queue/failed/{job_id}/requeue`
+
+Ручной requeue для job, отмеченной в failed queue marker.
+
+Сценарий:
+1. Проверяется marker-job `failed_{job_id}` в failed queue.
+2. Проверяется оригинальный job `job_id`.
+3. Выполняется requeue оригинального job.
+4. Marker удаляется из failed queue.
 
 ---
 

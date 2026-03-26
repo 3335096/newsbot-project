@@ -9,6 +9,7 @@ from app.db.models.llm_task import LLMTask
 from app.db.models.publication import Publication
 from app.db.session import SessionLocal
 from app.metrics import record_llm_task, record_publication_event
+from app.queue import get_failed_queue
 from app.services.llm_task_service import LLMTaskService
 from app.services.publisher_service import PublisherService
 from core.config import settings
@@ -51,10 +52,12 @@ def run_llm_task_job(
         logger.exception("LLM background job failed task_id={}: {}", llm_task_id, exc)
         task = db.query(LLMTask).filter(LLMTask.id == llm_task_id).first()
         if task:
+            failed_job_id = task.queue_job_id
             task.status = "error"
             task.queue_job_id = None
             task.error = str(exc)
             db.commit()
+            _move_task_to_failed_queue(failed_job_id)
         record_llm_task(task_type=task_type, status="error")
     finally:
         db.close()
@@ -69,6 +72,8 @@ def process_publication_job(publication_id: int) -> None:
             logger.warning("Publication {} not found in DB before execution", publication_id)
             return
 
+        publication.status = "running"
+        db.commit()
         publisher = PublisherService(bot)
         result = asyncio.run(publisher.process_publication(db, publication))
         record_publication_event(
@@ -80,10 +85,12 @@ def process_publication_job(publication_id: int) -> None:
         logger.exception("Publication background job failed publication_id={}: {}", publication_id, exc)
         publication = db.query(Publication).filter(Publication.id == publication_id).first()
         if publication:
+            failed_job_id = publication.queue_job_id
             publication.status = "error"
             publication.queue_job_id = None
             publication.log = str(exc)
             db.commit()
+            _move_task_to_failed_queue(failed_job_id)
         record_publication_event(event="job_processed", status="error")
     finally:
         try:
@@ -91,3 +98,23 @@ def process_publication_job(publication_id: int) -> None:
         except Exception:
             logger.debug("Failed to close bot session for publication job {}", publication_id)
         db.close()
+
+
+def _move_task_to_failed_queue(job_id: str | None) -> None:
+    if not job_id:
+        return
+    try:
+        failed_queue = get_failed_queue()
+        failed_queue.enqueue(
+            "app.services.background_jobs._noop_failed_job",
+            job_id,
+            job_id=f"failed_{job_id}",
+            result_ttl=settings.QUEUE_RESULT_TTL_SECONDS,
+        )
+    except Exception as exc:  # pragma: no cover - best effort only
+        logger.debug("Failed to move job {} to failed queue: {}", job_id, exc)
+
+
+def _noop_failed_job(original_job_id: str) -> None:
+    # Marker job in dedicated failed queue to simplify operator requeue flows.
+    logger.info("Failed queue marker created for job {}", original_job_id)

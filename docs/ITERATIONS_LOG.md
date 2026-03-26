@@ -378,3 +378,58 @@
 ### Ограничения на текущем шаге
 - В bot-интерфейсе управления источниками пока реализованы базовые операции (просмотр, toggle, parse-now); создание/редактирование через FSM-команды будет расширено в следующих шагах.
 - Ручной `parse-now` выполняется синхронно в контексте API-запроса и рассчитан на точечные ручные запуски.
+
+---
+
+## Итерация 10 — Надежность очередей и queue observability
+
+### Что сделано
+- Добавлен контур наблюдаемости и администрирования очередей:
+  - новый роутер `app/api/routers/queue_admin.py`:
+    - `GET /api/queue/stats` — сводка по очередям (`llm`, `publications`, `failed`) + Redis/worker status,
+    - `POST /api/queue/failed/{job_id}/requeue` — ручной requeue failed job.
+  - роутер подключен в `app/main.py` и экспортирован в `app/api/routers/__init__.py`.
+- Расширен queue слой `app/queue.py`:
+  - поддержка `QUEUE_FAILED_NAME`,
+  - `QueueSnapshot` + `queue_snapshot(...)`,
+  - `fetch_job(job_id)` для универсального поиска job по Redis.
+- Добавлен worker heartbeat:
+  - новый модуль `app/services/worker_state.py`,
+  - heartbeat хранится в Redis (`newsbot:worker:last_seen`),
+  - в `worker.py` запущен фоновый heartbeat thread во время работы worker-а.
+- Добавлены readiness/health проверки очередей:
+  - `GET /health/ready` теперь возвращает:
+    - статус Redis (`redis.ok`),
+    - состояние worker (`alive`, `last_seen`),
+    - snapshot очередей.
+- Усилена обработка отказов job-ов:
+  - в `app/services/background_jobs.py` при ошибках создается marker в failed queue,
+  - `queue_job_id` очищается у сущностей при fail/success в run-потоке,
+  - статусы и ошибки синхронизируются с БД.
+- Добавлена безопасная логика requeue:
+  - в `app/services/queue_dispatcher.py`:
+    - `requeue_job_by_id(job_id)`,
+    - `requeue_job_object(job)`,
+    - requeue разрешен только для `failed/stopped/canceled`.
+- Расширены метрики:
+  - `newsbot_queue_events_total{event,queue_name}`,
+  - `newsbot_queue_depth{queue_name}` (sampled через histogram),
+  - helper-функции `record_queue_event`, `observe_queue_depth` в `app/metrics.py`.
+- Обновлен конфиг:
+  - `core/config.py`, `.env.example`, `README.md`:
+    - `QUEUE_FAILED_NAME`,
+    - `WORKER_HEARTBEAT_TTL_SECONDS`.
+
+### Тесты и проверки
+- Добавлены тесты надежности очередей:
+  - `tests/services/test_queue_reliability.py`:
+    - heartbeat в Redis,
+    - queue stats с признаком `worker_alive`,
+    - отсутствие heartbeat => `worker_alive=False`.
+- Добавлены тесты requeue:
+  - `tests/services/test_queue_dispatcher_requeue.py`:
+    - requeue только для failed-like job status.
+
+### Ограничения на текущем шаге
+- DLQ реализован через marker-джобы в `failed` queue (операторский MVP-подход), без отдельной бизнес-таблицы инцидентов.
+- API queue admin пока без отдельного auth-слоя и предполагает защиту на уровне сети/ingress.
