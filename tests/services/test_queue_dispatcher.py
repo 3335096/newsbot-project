@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import os
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -9,6 +10,10 @@ from app.db.models.article_draft import ArticleDraft
 from app.db.models.publication import Publication
 from app.db.models.source import Source
 from app.db.models.base import Base
+
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-token")
+
 from app.services.queue_dispatcher import enqueue_due_publications, enqueue_publication
 
 

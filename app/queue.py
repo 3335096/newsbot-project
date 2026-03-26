@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from redis import Redis
-from rq import Queue
-from rq.retry import Retry
+from rq import Queue, Retry
 
 from core.config import settings
 

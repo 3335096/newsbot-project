@@ -15,6 +15,14 @@ from app.queue import (
 from core.config import settings
 
 
+def _to_aware_utc(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def enqueue_llm_task(
     db: Session,
     task: LLMTask,
@@ -51,9 +59,10 @@ def enqueue_publication(
     if publication.status not in {"queued", "scheduled"}:
         return None
     if publication.status == "scheduled":
-        if not publication.scheduled_at:
+        scheduled_at = _to_aware_utc(publication.scheduled_at)
+        if not scheduled_at:
             return None
-        if publication.scheduled_at > datetime.now(timezone.utc):
+        if scheduled_at > datetime.now(timezone.utc):
             return None
         publication.status = "queued"
 
