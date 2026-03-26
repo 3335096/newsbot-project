@@ -12,6 +12,7 @@ router = Router()
 class PresetEditState(StatesGroup):
     waiting_for_system_prompt = State()
     waiting_for_user_template = State()
+    waiting_for_default_model = State()
 
 def _admin_keyboard() -> types.InlineKeyboardMarkup:
     return types.InlineKeyboardMarkup(
@@ -35,6 +36,12 @@ def _preset_action_keyboard(preset_name: str) -> types.InlineKeyboardMarkup:
                 types.InlineKeyboardButton(
                     text="Изменить user template",
                     callback_data=f"admin_preset_edit_user_{preset_name}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="Изменить default model",
+                    callback_data=f"admin_preset_edit_model_{preset_name}",
                 )
             ],
             [
@@ -244,6 +251,21 @@ async def admin_edit_user_start(callback: types.CallbackQuery, state: FSMContext
     await callback.answer()
 
 
+@router.callback_query(
+    F.data.startswith("admin_preset_edit_model_"), F.from_user.id.in_(settings.admin_ids)
+)
+async def admin_edit_model_start(callback: types.CallbackQuery, state: FSMContext):
+    preset_name = callback.data.replace("admin_preset_edit_model_", "", 1)
+    await state.clear()
+    await state.update_data(preset_name=preset_name)
+    await callback.message.answer(
+        f"Введите default model для пресета '{preset_name}' "
+        "(или '-' чтобы сбросить на значение по умолчанию сервиса):"
+    )
+    await state.set_state(PresetEditState.waiting_for_default_model)
+    await callback.answer()
+
+
 @router.message(Command("preset_system"), F.from_user.id.in_(settings.admin_ids))
 async def admin_update_system_prompt(message: types.Message):
     parts = message.text.split(maxsplit=2) if message.text else []
@@ -307,6 +329,28 @@ async def admin_update_user_template(message: types.Message):
         await message.answer(f"User template обновлен для пресета '{preset_name}'.")
 
 
+@router.message(Command("preset_model"), F.from_user.id.in_(settings.admin_ids))
+async def admin_update_default_model(message: types.Message):
+    parts = message.text.split(maxsplit=2) if message.text else []
+    if len(parts) < 3:
+        await message.answer("Использование: /preset_model <preset_name> <default_model|->")
+        return
+    preset_name, model_value = parts[1], parts[2].strip()
+    default_model = None if model_value == "-" else model_value
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
+            json={"default_model": default_model},
+        )
+        if response.status_code != 200:
+            await message.answer(f"Ошибка: {response.text}")
+            return
+        rendered_value = default_model or "(service default)"
+        await message.answer(
+            f"Default model обновлен для пресета '{preset_name}': {rendered_value}"
+        )
+
+
 @router.message(PresetEditState.waiting_for_user_template, F.from_user.id.in_(settings.admin_ids))
 async def admin_update_user_template_fsm(message: types.Message, state: FSMContext):
     new_template = (message.text or "").strip()
@@ -329,6 +373,38 @@ async def admin_update_user_template_fsm(message: types.Message, state: FSMConte
             return
     await message.answer(
         f"User template обновлен для пресета '{preset_name}'.",
+        reply_markup=_preset_action_keyboard(preset_name),
+    )
+    await state.clear()
+
+
+@router.message(PresetEditState.waiting_for_default_model, F.from_user.id.in_(settings.admin_ids))
+async def admin_update_default_model_fsm(message: types.Message, state: FSMContext):
+    model_value = (message.text or "").strip()
+    if not model_value:
+        await message.answer(
+            "Текст не может быть пустым. Введите default model или '-' для сброса:"
+        )
+        return
+    data = await state.get_data()
+    preset_name = data.get("preset_name")
+    if not preset_name:
+        await message.answer("Не удалось определить пресет. Повторите действие.")
+        await state.clear()
+        return
+
+    default_model = None if model_value == "-" else model_value
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
+            json={"default_model": default_model},
+        )
+        if response.status_code != 200:
+            await message.answer(f"Ошибка обновления пресета: {response.text}")
+            return
+    rendered_value = default_model or "(service default)"
+    await message.answer(
+        f"Default model обновлен для пресета '{preset_name}': {rendered_value}",
         reply_markup=_preset_action_keyboard(preset_name),
     )
     await state.clear()

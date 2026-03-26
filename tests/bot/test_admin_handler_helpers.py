@@ -22,4 +22,5 @@ def test_preset_action_keyboard_uses_preset_name_in_callbacks() -> None:
     callback_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
     assert "admin_preset_edit_system_summary" in callback_data
     assert "admin_preset_edit_user_summary" in callback_data
+    assert "admin_preset_edit_model_summary" in callback_data
     assert "admin_preset_toggle_summary" in callback_data

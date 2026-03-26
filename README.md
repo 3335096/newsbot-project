@@ -67,7 +67,7 @@
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–12:
+На данный момент завершены итерации 1–13:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -81,3 +81,4 @@
 - Итер. 10: надежность очередей (DLQ marker queue + manual requeue endpoint), queue observability (`/api/queue/stats`, метрики queue events/depth), readiness check Redis/worker (`/health/ready`) и worker heartbeat.
 - Итер. 11: расширение bot UX для источников — FSM-сценарии создания/редактирования/удаления источников прямо в Telegram (без обязательного перехода в API для базовых операций).
 - Итер. 12: расширение админского UX для LLM-пресетов — inline FSM-редактирование `system_prompt` и `user_template` из карточки пресета (команды `/preset_system` и `/preset_user` сохранены как fallback).
+- Итер. 13: расширение админского UX для LLM-пресетов — управление `default_model` из карточки пресета (inline FSM + команда `/preset_model` как fallback).

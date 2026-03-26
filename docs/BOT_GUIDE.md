@@ -68,13 +68,15 @@
 В админ-панели:
 - `LLM-пресеты` — просмотр пресетов
 - `Вкл/выкл` — включение/отключение пресета
-- `Изменить system prompt` — подсказка по команде
-- `Изменить user template` — подсказка по команде
+- `Изменить system prompt` — inline/FSM-редактирование
+- `Изменить user template` — inline/FSM-редактирование
+- `Изменить default model` — inline/FSM-редактирование
 - `Правила модерации` — просмотр и переключение правил
 
 Команды редактирования (fallback):
 - `/preset_system <preset_name> <new system prompt>`
 - `/preset_user <preset_name> <new user template>`
+- `/preset_model <preset_name> <default_model|->`
 
 ### Inline/FSM редактирование пресетов (Iteration 12)
 
@@ -89,6 +91,17 @@
 4. возвращает подтверждение и action-кнопки пресета.
 
 Таким образом, базовое редактирование пресетов доступно без ручного набора slash-команд.
+
+### Inline/FSM редактирование default model (Iteration 13)
+
+Добавлена отдельная кнопка:
+- `Изменить default model`
+
+Flow:
+1. нажать кнопку в карточке пресета,
+2. ввести значение модели (например, `openai/gpt-4o-mini`) или `-` для сброса,
+3. бот отправляет `POST /api/llm/presets/{preset_name}` с `default_model`,
+4. возвращает подтверждение и action-кнопки пресета.
 
 ## 6. Публикация из карточки
 

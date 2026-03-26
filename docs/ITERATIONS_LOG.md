@@ -517,3 +517,37 @@
 ### Ограничения на текущем шаге
 - FSM-редактирование пресетов реализовано только для текстовых полей (`system_prompt`, `user_prompt_template`).
 - Редактирование `default_model` через bot UI пока не добавлено (доступно через API).
+
+---
+
+## Итерация 13 — Управление `default_model` пресетов из admin-бота
+
+### Что сделано
+- Расширен bot-admin UX для пресетов:
+  - в action-кнопки пресета добавлена кнопка `Изменить default model`.
+- Добавлен FSM-сценарий редактирования `default_model`:
+  - callback `admin_preset_edit_model_<preset>` переводит в состояние ожидания модели,
+  - сообщение с новым значением отправляется в API:
+    - `POST /api/llm/presets/{preset_name}` с полем `default_model`,
+  - значение `-` поддерживается как сброс к `None` (service default model).
+- Добавлен fallback через slash-команду:
+  - `/preset_model <preset_name> <default_model|->`.
+- Обновлены сообщения подтверждения:
+  - после update бот показывает актуальный результат и возвращает action-кнопки пресета.
+
+### Измененные файлы (ключевые)
+- `bot/handlers/admin.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен тест `tests/bot/test_admin_handler_helpers.py`:
+  - проверка наличия callback `admin_preset_edit_model_<preset>` в keyboard пресета.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Управление `default_model` выполняется как свободный текст (валидация формата/доступности модели остается на API/LLM-провайдере).
+- UI выбора модели из списка доступных провайдеров пока не реализован.
