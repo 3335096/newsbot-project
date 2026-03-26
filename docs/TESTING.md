@@ -78,6 +78,9 @@
 20. Admin dependency hardening:
    - rate-limit неверных попыток admin token (`429`),
    - корректная работа helper при валидном/невалидном `ADMIN_API_TOKEN`.
+21. Distributed admin rate-limit:
+   - Redis-backed shared limiter path (одинаковое поведение в multi-replica),
+   - in-memory fallback path при недоступном Redis.
 
 ## Быстрый запуск тестов
 

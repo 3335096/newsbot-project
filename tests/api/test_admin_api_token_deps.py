@@ -54,12 +54,23 @@ def test_admin_api_rate_limit_kicks_in_on_repeated_failures() -> None:
     original_admin = api_deps.settings.ADMIN_API_TOKEN
     original_limit = api_deps.settings.ADMIN_API_RATE_LIMIT_COUNT
     original_window = api_deps.settings.ADMIN_API_RATE_LIMIT_WINDOW_SECONDS
+    original_fallback = api_deps.settings.ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK
+    original_redis_limiter = api_deps._enforce_admin_rate_limit_redis
     original_failures = dict(api_deps._admin_token_failures)
     try:
         api_deps._admin_token_failures.clear()
         api_deps.settings.ADMIN_API_TOKEN = "expected"
         api_deps.settings.ADMIN_API_RATE_LIMIT_COUNT = 2
         api_deps.settings.ADMIN_API_RATE_LIMIT_WINDOW_SECONDS = 60
+        api_deps.settings.ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK = True
+
+        state = {"count": 0}
+
+        def _fake_redis_limiter(token: str | None) -> bool:
+            state["count"] += 1
+            return state["count"] > 2
+
+        api_deps._enforce_admin_rate_limit_redis = _fake_redis_limiter
         client = TestClient(app)
 
         r1 = client.get("/api/queue/stats", headers={"X-Admin-Api-Token": "bad"})
@@ -74,6 +85,8 @@ def test_admin_api_rate_limit_kicks_in_on_repeated_failures() -> None:
         api_deps.settings.ADMIN_API_TOKEN = original_admin
         api_deps.settings.ADMIN_API_RATE_LIMIT_COUNT = original_limit
         api_deps.settings.ADMIN_API_RATE_LIMIT_WINDOW_SECONDS = original_window
+        api_deps.settings.ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK = original_fallback
+        api_deps._enforce_admin_rate_limit_redis = original_redis_limiter
         api_deps._admin_token_failures.clear()
         api_deps._admin_token_failures.update(original_failures)
 
@@ -81,3 +94,40 @@ def test_admin_api_rate_limit_kicks_in_on_repeated_failures() -> None:
 def test_admin_api_rate_limit_key_masks_token_length() -> None:
     assert api_deps._rate_limit_key(None) == "<missing>"
     assert api_deps._rate_limit_key("abc") == "<len=3>"
+
+
+def test_admin_api_rate_limit_falls_back_to_inmemory_when_redis_unavailable() -> None:
+    original_admin = api_deps.settings.ADMIN_API_TOKEN
+    original_limit = api_deps.settings.ADMIN_API_RATE_LIMIT_COUNT
+    original_window = api_deps.settings.ADMIN_API_RATE_LIMIT_WINDOW_SECONDS
+    original_fallback = api_deps.settings.ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK
+    original_redis_limiter = api_deps._enforce_admin_rate_limit_redis
+    original_failures = dict(api_deps._admin_token_failures)
+    try:
+        api_deps._admin_token_failures.clear()
+        api_deps.settings.ADMIN_API_TOKEN = "expected"
+        api_deps.settings.ADMIN_API_RATE_LIMIT_COUNT = 2
+        api_deps.settings.ADMIN_API_RATE_LIMIT_WINDOW_SECONDS = 60
+        api_deps.settings.ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK = True
+
+        def _fake_redis_limiter(token: str | None) -> bool:
+            raise RuntimeError("redis down")
+
+        api_deps._enforce_admin_rate_limit_redis = _fake_redis_limiter
+        client = TestClient(app)
+
+        r1 = client.get("/api/queue/stats", headers={"X-Admin-Api-Token": "bad"})
+        r2 = client.get("/api/queue/stats", headers={"X-Admin-Api-Token": "bad"})
+        r3 = client.get("/api/queue/stats", headers={"X-Admin-Api-Token": "bad"})
+
+        assert r1.status_code == 401
+        assert r2.status_code == 401
+        assert r3.status_code == 429
+    finally:
+        api_deps.settings.ADMIN_API_TOKEN = original_admin
+        api_deps.settings.ADMIN_API_RATE_LIMIT_COUNT = original_limit
+        api_deps.settings.ADMIN_API_RATE_LIMIT_WINDOW_SECONDS = original_window
+        api_deps.settings.ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK = original_fallback
+        api_deps._enforce_admin_rate_limit_redis = original_redis_limiter
+        api_deps._admin_token_failures.clear()
+        api_deps._admin_token_failures.update(original_failures)

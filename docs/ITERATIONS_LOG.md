@@ -1093,3 +1093,41 @@
 ### Ограничения на текущем шаге
 - Unified admin auth пока token-based без ротации/TTL и без многоуровневой ролевой модели.
 - Часть endpoint-ов (`/api/llm/tasks`, `/api/publications`) остаются editor-facing и не защищаются `ADMIN_API_TOKEN`.
+
+---
+
+## Итерация 24 — Distributed admin rate-limit (Redis-backed) + fallback
+
+### Что сделано
+- Переведен rate-limit невалидных admin token попыток на Redis-backed модель:
+  - в `app/api/deps.py` добавлен Redis path для счетчика неуспешных попыток;
+  - счетчик общий для всех инстансов API (распределенный лимит).
+- Реализована безопасная деградация:
+  - если Redis недоступен и `ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK=true`,
+    dependency использует in-memory fallback (как в предыдущей итерации).
+- Добавлены новые настройки:
+  - `ADMIN_API_RATE_LIMIT_REDIS_PREFIX` (prefix ключей в Redis),
+  - `ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK` (включить/выключить fallback).
+- Сохранена текущая политика:
+  - audit warning log на невалидные токены (без логирования значения токена),
+  - `429` при превышении лимита неуспешных попыток.
+
+### Измененные файлы (ключевые)
+- `app/api/deps.py`
+- `core/config.py`
+- `.env.example`
+- `tests/api/test_admin_api_token_deps.py`
+- `README.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Тесты и проверки
+- Обновлен `tests/api/test_admin_api_token_deps.py`:
+  - сценарий Redis-backed rate-limit (через mock limiter),
+  - сценарий fallback на in-memory при деградации Redis.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Для приватности ключи в Redis формируются по SHA-256 от входного токена, но still отражают факт попыток по одному и тому же вводу.
+- При отключенном fallback (`ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK=false`) и деградации Redis endpoint продолжит отвечать `401`, но без лимитирования (fail-open для доступности).

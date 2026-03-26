@@ -181,6 +181,20 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
   - `POST /api/llm/presets/{preset_name}`
   - `/bot/webhook/info|set|delete`
 
+### Distributed admin rate-limit (Iteration 24)
+
+- Ограничение невалидных попыток `X-Admin-Api-Token` переведено на Redis-backed модель:
+  - счетчик хранится в Redis и разделяется между репликами API.
+- Конфиг:
+  - `ADMIN_API_RATE_LIMIT_COUNT`
+  - `ADMIN_API_RATE_LIMIT_WINDOW_SECONDS`
+  - `ADMIN_API_RATE_LIMIT_REDIS_PREFIX`
+  - `ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK`
+- Поведение:
+  - при недоступном Redis, если `ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK=true`,
+    используется in-memory fallback (MVP-safe режим);
+  - если fallback выключен, rate-limit часть пропускается (auth остается строгой по токену).
+
 ### Admin auth strict mode + rate limit/audit (Iteration 22)
 
 - Удален legacy fallback `WEBHOOK_ADMIN_TOKEN`:
