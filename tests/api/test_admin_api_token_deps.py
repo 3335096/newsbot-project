@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.api import deps as api_deps
 from app.main import app
-from app.api.routers import llm, moderation, queue_admin
+from app.api.routers import queue_admin
 
 
 def test_queue_stats_requires_admin_api_token() -> None:

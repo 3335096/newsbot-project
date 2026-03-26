@@ -110,11 +110,7 @@ def requeue_job_by_id(job_id: str) -> bool:
         status = job.get_status(refresh=True)
         if status not in {"failed", "stopped", "canceled"}:
             return False
-        origin = getattr(job, "origin", None)
-        if origin:
-            job.requeue(queue=get_queue(origin))
-        else:
-            job.requeue()
+        job.requeue()
         return True
     except Exception:
         return False
@@ -130,7 +126,8 @@ def requeue_job_object(job) -> bool:
         return False
 
 
-def requeue_llm_task(db: Session, task: LLMTask) -> bool:
+def requeue_llm_task(db: Session, task: LLMTask, *, max_len: int = 700) -> bool:
+    del max_len
     job_id = task.queue_job_id
     if not job_id:
         return False

@@ -126,7 +126,7 @@ async def run_llm_task(payload: RunTaskPayload, db: Session = Depends(get_db)):
             model=payload.model,
             max_len=payload.max_len,
         )
-        job_id = enqueue_llm_task(db, task, max_len=payload.max_len)
+        enqueue_llm_task(db, task, max_len=payload.max_len)
         db.refresh(task)
     except ValueError as exc:
         record_llm_task(task_type=payload.task_type, status="invalid_request")
@@ -173,7 +173,7 @@ async def requeue_failed_llm_task(task_id: int, payload: RetryTaskPayload, db: S
     if not task.draft_id or not task.task_type or not task.preset:
         raise HTTPException(status_code=400, detail="Task payload is incomplete for requeue")
 
-    if requeue_llm_task(db, task, max_len=payload.max_len) is None:
+    if not requeue_llm_task(db, task):
         raise HTTPException(status_code=409, detail="Task was not requeued")
     db.refresh(task)
     return _task_to_out(task)

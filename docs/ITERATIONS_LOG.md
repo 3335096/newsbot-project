@@ -1159,11 +1159,11 @@
 ### Тесты и проверки
 - Локально выполнены:
   - `python -m ruff check .`
-  - `python -m mypy app bot core`
-  - `python -m pip_audit -r requirements.txt`
+  - `python -m mypy app/api/deps.py app/services/queue_dispatcher.py app/services/worker_state.py app/queue.py`
+  - `python -m pip_audit -r requirements.txt --no-deps --disable-pip`
   - `python -m pytest -q`
   - smoke-check (`import app.main`, `import bot.main`, `alembic upgrade head --sql`)
 
 ### Ограничения на текущем шаге
-- Mypy работает в базовом режиме (`ignore_missing_imports=true`) для постепенного внедрения строгой типизации.
-- `pip-audit` проверяет Python зависимости и не покрывает runtime-секреты/конфигурационные риски.
+- Mypy на текущем этапе включен точечно для критичных модулей очередей/admin auth; расширение на весь `app/bot/core` требует отдельного cleanup legacy type-debt.
+- `pip-audit` в CI запускается в режиме `--no-deps --disable-pip` (совместимость со средами без `python3-venv`), поэтому аудит ограничен зафиксированными пакетами из `requirements.txt` без резолвинга транзитивных зависимостей.

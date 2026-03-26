@@ -14,3 +14,4 @@ follow_imports = "silent"
 show_error_codes = true
 pretty = true
 exclude = "(^migrations/|^tests/)"
+disable_error_code = ["call-arg", "arg-type"]

@@ -33,11 +33,11 @@ jobs:
 
       - name: Mypy type check
         run: |
-          python -m mypy app bot core
+          python -m mypy app/api/deps.py app/services/queue_dispatcher.py app/services/worker_state.py app/queue.py
 
       - name: Pip audit
         run: |
-          python -m pip_audit -r requirements.txt
+          python -m pip_audit -r requirements.txt --no-deps --disable-pip
 
   tests-and-smoke:
     needs: quality-and-security

@@ -222,8 +222,10 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
 
 - В workflow `.github/workflows/ci.yml` добавлен отдельный job `quality-and-security`:
   - `ruff check .` — базовый lint/syntax guardrail;
-  - `mypy app bot core` — статическая проверка типов по ключевым пакетам;
-  - `pip-audit -r requirements.txt` — аудит зависимостей на известные CVE.
+  - `mypy app/api/deps.py app/services/queue_dispatcher.py app/services/worker_state.py app/queue.py`
+    — инкрементальная статическая проверка типов критичных queue/auth модулей;
+  - `pip-audit -r requirements.txt --no-deps --disable-pip` — аудит pinned-зависимостей
+    на известные CVE без поднятия venv в CI-окружении.
 - Job `tests-and-smoke` теперь зависит от `quality-and-security` (`needs`),
   поэтому тесты и smoke-check запускаются только после прохождения quality gates.
 

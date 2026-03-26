@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

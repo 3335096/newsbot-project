@@ -118,14 +118,20 @@ DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -m 
 ```bash
 python3 -m pip install ruff mypy pip-audit
 python3 -m ruff check .
-python3 -m mypy app bot core
-python3 -m pip_audit -r requirements.txt
+python3 -m mypy \
+  app/api/deps.py \
+  app/services/queue_dispatcher.py \
+  app/services/worker_state.py \
+  app/queue.py
+python3 -m pip_audit --no-deps --disable-pip -r requirements.txt
 ```
 
 Примечание:
 - `ruff` запускается в baseline-режиме по критическим ошибкам (`E9`, `F`) и не блокирует legacy style-замечания;
-- `mypy` проверяет production-код (`app`, `bot`, `core`) и исключает `tests/` и `migrations/`;
-- `pip-audit` падает при найденных известных уязвимостях в зафиксированных зависимостях.
+- `mypy` на текущем этапе проверяет критичные инфраструктурные модули очередей/админ-auth
+  (дальше покрытие расширяется инкрементально);
+- `pip-audit` запускается в baseline-режиме (`--no-deps --disable-pip`) для совместимости с CI/runtime
+  окружением без `python3-venv`; проверка выполняется по зафиксированным direct dependencies.
 
 ## Что добавить дальше (рекомендуется)
 
