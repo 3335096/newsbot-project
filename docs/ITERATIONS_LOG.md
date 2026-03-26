@@ -479,3 +479,41 @@
 ### Ограничения на текущем шаге
 - В FSM-потоке редактируются только `name` и `schedule_cron`; изменение `type/url/translate settings` останется в API и может быть добавлено отдельным шагом.
 - Парсинг/валидация cron остается source-of-truth на API-уровне; бот выполняет только базовые клиентские проверки.
+
+---
+
+## Итерация 12 — FSM-редактирование LLM-пресетов в Telegram-боте
+
+### Что сделано
+- Убрано ограничение админ-UX по пресетам, где для редактирования выдавались только command hints:
+  - callback `Изменить system prompt` теперь запускает FSM-поток ввода нового текста,
+  - callback `Изменить user template` также запускает FSM-поток.
+- Добавлена state-модель редактирования пресетов:
+  - `PresetEditState.waiting_for_system_prompt`,
+  - `PresetEditState.waiting_for_user_template`.
+- Реализованы message-хендлеры FSM:
+  - принимают новый текст,
+  - валидируют непустой ввод,
+  - вызывают API `POST /api/llm/presets/{preset_name}`,
+  - возвращают подтверждение и action-кнопки пресета,
+  - очищают state после успешного обновления.
+- Сохранена обратная совместимость:
+  - команды `/preset_system` и `/preset_user` продолжают работать как fallback.
+
+### Измененные файлы (ключевые)
+- `bot/handlers/admin.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен новый тестовый модуль:
+  - `tests/bot/test_admin_handler_helpers.py`
+  - проверяет состав admin keyboard и callback-структуру preset action keyboard.
+- Полный прогон тестов и smoke-check выполняется в рамках итерации после pre-test commit.
+
+### Ограничения на текущем шаге
+- FSM-редактирование пресетов реализовано только для текстовых полей (`system_prompt`, `user_prompt_template`).
+- Редактирование `default_model` через bot UI пока не добавлено (доступно через API).
