@@ -60,6 +60,10 @@
 16. Webhook endpoint:
    - проверка `X-Telegram-Bot-Api-Secret-Token`,
    - прием валидного update и передача в `Dispatcher.feed_update`.
+17. Webhook operations API:
+   - `GET /bot/webhook/info`,
+   - `POST /bot/webhook/set` (payload/config fallback, optional drop pending updates),
+   - `POST /bot/webhook/delete`.
 
 ## Быстрый запуск тестов
 

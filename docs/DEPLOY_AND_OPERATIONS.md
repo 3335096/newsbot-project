@@ -43,16 +43,25 @@
 - Проверка SQL миграций:
   - `alembic upgrade head --sql`
 
-## 3.1. Webhook-режим Telegram (Iteration 17)
+## 3.1. Webhook-режим Telegram (Iteration 17/18)
 
 - Включение режима:
   - `TELEGRAM_USE_WEBHOOK=true`
 - Секрет заголовка:
   - `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
+- Полный URL webhook:
+  - `TELEGRAM_WEBHOOK_URL=https://<your-domain>/bot/webhook`
 - Endpoint:
   - `POST /bot/webhook`
   - проверяется заголовок `X-Telegram-Bot-Api-Secret-Token` (если секрет задан)
 - В polling-режиме (`TELEGRAM_USE_WEBHOOK=false`) бот продолжает работать через `python -m bot.main`.
+
+Webhook operations API:
+- `GET /bot/webhook/info` — получить текущий webhook info из Telegram.
+- `POST /bot/webhook/set` — установить webhook:
+  - body: `url` (optional, fallback к `TELEGRAM_WEBHOOK_URL`), `secret_token` (optional), `drop_pending_updates` (optional).
+- `POST /bot/webhook/delete` — удалить webhook:
+  - query: `drop_pending_updates` (optional).
 
 Пример установки webhook через Bot API:
 

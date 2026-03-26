@@ -751,3 +751,50 @@
 ### Ограничения на текущем шаге
 - В текущем webhook flow не реализован endpoint для автоматического `setWebhook`/`deleteWebhook` управления через API (операция выполняется через Bot API/операционные команды).
 - Режим `TELEGRAM_USE_WEBHOOK` добавлен как конфигурационный флаг для эксплуатации, переключение процесса polling/webhook остается на уровне deployment-профиля.
+
+---
+
+## Итерация 18 — Webhook operations API + mode-aware startup
+
+### Что сделано
+- Закрыт эксплуатационный зазор webhook-режима:
+  - добавлены endpoints управления webhook в API:
+    - `GET /bot/webhook/info`,
+    - `POST /bot/webhook/set`,
+    - `POST /bot/webhook/delete`.
+- Реализована обвязка runtime для webhook-операций:
+  - `bot/runtime.py` расширен методами:
+    - `get_webhook_info()`,
+    - `set_webhook(url, secret_token)`,
+    - `delete_webhook(drop_pending_updates)`.
+- Добавлена конфигурация для production webhook:
+  - `TELEGRAM_WEBHOOK_URL` в `core/config.py` и `.env.example`.
+- Сделан mode-aware запуск polling-процесса:
+  - `bot/main.py` при `TELEGRAM_USE_WEBHOOK=true` не запускает polling и завершает процесс с информационным логом.
+- Сохранена обратная совместимость:
+  - webhook ingress `POST /bot/webhook` из Iteration 17 продолжает работать без изменений контракта.
+
+### Измененные файлы (ключевые)
+- `app/api/routers/bot_webhook.py`
+- `bot/runtime.py`
+- `bot/main.py`
+- `core/config.py`
+- `.env.example`
+- `tests/api/test_bot_webhook.py`
+- `docs/API_REFERENCE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен `tests/api/test_bot_webhook.py`:
+  - проверка `GET /bot/webhook/info`,
+  - проверка `POST /bot/webhook/set` (payload и fallback на env),
+  - проверка `POST /bot/webhook/delete`,
+  - проверка `400`, если URL для set отсутствует.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Webhook management endpoints не ограничены отдельной admin-аутентификацией на уровне API (в MVP предполагается эксплуатационный perimeter).
+- `TELEGRAM_USE_WEBHOOK` управляет запуском polling-процесса, но разделение compose-профилей остается задачей deployment-конфигурации.

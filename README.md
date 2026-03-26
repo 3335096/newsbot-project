@@ -54,6 +54,9 @@
 - `TELEGRAM_CHANNEL_IDS`
 - `OPENROUTER_API_KEY`
 - `APP_BASE_URL`
+- `TELEGRAM_WEBHOOK_SECRET`
+- `TELEGRAM_WEBHOOK_URL`
+- `TELEGRAM_USE_WEBHOOK`
 - `DEFAULT_TARGET_LANGUAGE`
 - `LLM_DEFAULT_MODEL_TRANSLATE`
 - `LLM_DEFAULT_MODEL_REWRITE`
@@ -86,3 +89,4 @@
 - Итер. 15: операционный раздел в Telegram-боте для админов — просмотр queue stats (`/api/queue/stats`) и readiness (`/health/ready`) с быстрым обновлением через inline-кнопки.
 - Итер. 16: закрытие bot settings и операций — реализован рабочий раздел `Настройки` (пользовательские параметры языка/изображений в БД через `/api/users/{telegram_user_id}/settings`) и UI‑requeue failed jobs в `Операции` (список marker jobs + кнопки requeue).
 - Итер. 17: production webhook для Telegram — endpoint `/bot/webhook` принимает реальные updates, валидирует `X-Telegram-Bot-Api-Secret-Token` (если задан), и передает апдейт в общий `aiogram.Dispatcher` runtime.
+- Итер. 18: операционное управление webhook — добавлены API endpoints `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`, а `bot.main` стал mode-aware (`TELEGRAM_USE_WEBHOOK`) и не запускает polling в webhook-профиле.

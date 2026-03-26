@@ -2,9 +2,13 @@ import asyncio
 import logging
 
 from bot.runtime import close_bot_session, ensure_bot_commands, get_bot, get_dispatcher
+from core.config import settings
 
 async def main():
     logging.basicConfig(level=logging.INFO)
+    if settings.TELEGRAM_USE_WEBHOOK:
+        logging.info("TELEGRAM_USE_WEBHOOK=true: polling process is disabled")
+        return
     bot = get_bot()
     dp = get_dispatcher()
     await ensure_bot_commands()
