@@ -28,8 +28,9 @@
    - `alembic upgrade head`
 3. Запустите API:
    - `uvicorn app.main:app --host 0.0.0.0 --port 8000`
-4. Запустите бота:
-   - `python -m bot.main`
+4. Запустите бота (выберите режим):
+   - polling (локальная разработка): `python -m bot.main`
+   - webhook (production): запуск бота как отдельного polling-процесса не нужен, апдейты приходят в API `POST /bot/webhook`
 5. Запустите worker:
    - `python -m worker`
 
@@ -41,6 +42,28 @@
   - `python3 -c "import bot.main; print('import bot.main: OK')"`
 - Проверка SQL миграций:
   - `alembic upgrade head --sql`
+
+## 3.1. Webhook-режим Telegram (Iteration 17)
+
+- Включение режима:
+  - `TELEGRAM_USE_WEBHOOK=true`
+- Секрет заголовка:
+  - `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
+- Endpoint:
+  - `POST /bot/webhook`
+  - проверяется заголовок `X-Telegram-Bot-Api-Secret-Token` (если секрет задан)
+- В polling-режиме (`TELEGRAM_USE_WEBHOOK=false`) бот продолжает работать через `python -m bot.main`.
+
+Пример установки webhook через Bot API:
+
+```bash
+curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://<your-domain>/bot/webhook",
+    "secret_token": "'"${TELEGRAM_WEBHOOK_SECRET}"'"
+  }'
+```
 
 ## 4. Логи и диагностика
 

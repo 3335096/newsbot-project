@@ -699,3 +699,55 @@
 ### Ограничения на текущем шаге
 - В settings пока нет UI для выбора пресетов/моделей по умолчанию на пользователя (доступно к расширению).
 - `GET /api/queue/failed` возвращает marker job IDs без enriched metadata (время/ошибка), это operator-MVP.
+
+---
+
+## Итерация 17 — Production webhook mode для Telegram-бота
+
+### Что сделано
+- Реализован рабочий webhook endpoint вместо placeholder:
+  - `POST /bot/webhook` теперь:
+    - принимает Telegram update payload,
+    - валидирует его через `aiogram.types.Update`,
+    - передает update в `Dispatcher.feed_update(...)`.
+- Добавлена проверка секрета webhook:
+  - поддержка заголовка `X-Telegram-Bot-Api-Secret-Token`,
+  - при заданном `TELEGRAM_WEBHOOK_SECRET` некорректный secret возвращает `401`.
+- Унифицирован runtime для polling и webhook:
+  - новый общий модуль `bot/runtime.py` с singleton `Bot`/`Dispatcher`,
+  - общий helper регистрации bot commands (`ensure_bot_commands`),
+  - корректное закрытие bot session (`close_bot_session`) на shutdown.
+- Обновлен запуск бота в polling-режиме:
+  - `bot/main.py` теперь использует общий runtime и общий set commands.
+- API startup/shutdown синхронизирован с runtime бота:
+  - на startup API выставляет bot commands,
+  - на shutdown закрывает shared bot session.
+- Добавлены новые конфигурационные параметры:
+  - `TELEGRAM_WEBHOOK_SECRET`,
+  - `TELEGRAM_USE_WEBHOOK` (флаг режима в окружении для эксплуатации).
+
+### Измененные файлы (ключевые)
+- `app/api/routers/bot_webhook.py`
+- `app/main.py`
+- `bot/runtime.py`
+- `bot/main.py`
+- `core/config.py`
+- `.env.example`
+- `tests/api/test_bot_webhook.py`
+- `docs/API_REFERENCE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен новый API-тест:
+  - `tests/api/test_bot_webhook.py`
+  - проверяет:
+    - `401` при неверном webhook secret,
+    - успешную обработку update и вызов `Dispatcher.feed_update` при корректном secret.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- В текущем webhook flow не реализован endpoint для автоматического `setWebhook`/`deleteWebhook` управления через API (операция выполняется через Bot API/операционные команды).
+- Режим `TELEGRAM_USE_WEBHOOK` добавлен как конфигурационный флаг для эксплуатации, переключение процесса polling/webhook остается на уровне deployment-профиля.

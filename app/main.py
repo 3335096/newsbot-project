@@ -17,6 +17,7 @@ from app.api.routers import (
 )
 from app.metrics import observe_http_request
 from app.services.scheduler import scheduler
+from bot.runtime import close_bot_session, ensure_bot_commands
 
 app = FastAPI()
 
@@ -47,10 +48,12 @@ async def prometheus_middleware(request: Request, call_next):
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up...")
+    await ensure_bot_commands()
     scheduler.start()
     scheduler.load_scheduled_jobs()
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down...")
+    await close_bot_session()
     scheduler.scheduler.shutdown()

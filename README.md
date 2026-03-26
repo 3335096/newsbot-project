@@ -67,7 +67,7 @@
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–16:
+На данный момент завершены итерации 1–17:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -85,3 +85,4 @@
 - Итер. 14: расширение bot UX для источников — редактирование через Telegram не только `name/cron`, но и `type`, `url`, `translate_enabled`, `default_target_language`.
 - Итер. 15: операционный раздел в Telegram-боте для админов — просмотр queue stats (`/api/queue/stats`) и readiness (`/health/ready`) с быстрым обновлением через inline-кнопки.
 - Итер. 16: закрытие bot settings и операций — реализован рабочий раздел `Настройки` (пользовательские параметры языка/изображений в БД через `/api/users/{telegram_user_id}/settings`) и UI‑requeue failed jobs в `Операции` (список marker jobs + кнопки requeue).
+- Итер. 17: production webhook для Telegram — endpoint `/bot/webhook` принимает реальные updates, валидирует `X-Telegram-Bot-Api-Secret-Token` (если задан), и передает апдейт в общий `aiogram.Dispatcher` runtime.

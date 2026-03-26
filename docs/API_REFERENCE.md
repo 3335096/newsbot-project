@@ -267,4 +267,15 @@ Prometheus-метрики приложения в формате `text/plain; ve
 
 ### `POST /bot/webhook`
 
-Placeholder endpoint для webhook-интеграции (будет расширяться в следующих итерациях).
+Webhook endpoint для Telegram updates.
+
+Поведение:
+- принимает update payload Telegram;
+- валидирует payload через `aiogram.types.Update`;
+- передает update в общий aiogram dispatcher (`feed_update`);
+- возвращает `{"status":"ok"}` при успешной обработке.
+
+Security:
+- если задан `TELEGRAM_WEBHOOK_SECRET`, endpoint требует header:
+  - `X-Telegram-Bot-Api-Secret-Token: <secret>`
+- при несовпадении — `401 Invalid webhook secret`.

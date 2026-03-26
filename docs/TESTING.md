@@ -57,6 +57,9 @@
 15. Bot settings UX/helpers:
    - keyboard раздела настроек,
    - отображение значений `default_target_language` и `enable_images`.
+16. Webhook endpoint:
+   - проверка `X-Telegram-Bot-Api-Secret-Token`,
+   - прием валидного update и передача в `Dispatcher.feed_update`.
 
 ## Быстрый запуск тестов
 
@@ -70,6 +73,7 @@ python3 -m pytest \
   tests/services/test_queue_dispatcher_requeue.py \
   tests/services/test_queue_reliability.py \
   tests/services/test_sources_router.py \
+  tests/api/test_bot_webhook.py \
   tests/bot/test_sources_handler_helpers.py \
   tests/bot/test_admin_handler_helpers.py \
   tests/bot/test_ops_handler_helpers.py \
