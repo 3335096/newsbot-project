@@ -1,3 +1,4 @@
+import asyncio
 import time
 from contextlib import asynccontextmanager
 
@@ -21,18 +22,35 @@ from app.services.scheduler import scheduler
 from bot.runtime import close_bot_session, ensure_bot_commands, sync_webhook_mode
 
 
+async def _run_startup_step(name: str, coro, timeout_seconds: float = 20.0):
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout_seconds)
+    except asyncio.TimeoutError:
+        logger.warning("{} timed out after {}s; continuing startup", name, timeout_seconds)
+    except Exception as exc:
+        logger.exception("{} failed: {}", name, exc)
+    return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up...")
+    await _run_startup_step("ensure_bot_commands", ensure_bot_commands(), timeout_seconds=20.0)
+    sync_result = await _run_startup_step(
+        "sync_webhook_mode",
+        sync_webhook_mode(),
+        timeout_seconds=20.0,
+    )
     try:
-        await ensure_bot_commands()
-    except Exception as exc:
-        logger.exception("Failed to ensure bot commands: {}", exc)
+        if sync_result is not None:
+            logger.info("Webhook autosync result: {}", sync_result)
+    except Exception:
+        # Logging should never break startup.
+        pass
     try:
-        sync_result = await sync_webhook_mode()
         logger.info("Webhook autosync result: {}", sync_result)
     except Exception as exc:
-        logger.exception("Webhook autosync failed: {}", exc)
+        logger.exception("Webhook autosync log failed: {}", exc)
     scheduler.start()
     scheduler.load_scheduled_jobs()
     try:
