@@ -129,3 +129,26 @@ def requeue_job_object(job) -> bool:
     except Exception:
         return False
 
+
+def requeue_llm_task(db: Session, task: LLMTask) -> bool:
+    job_id = task.queue_job_id
+    if not job_id:
+        return False
+    ok = requeue_job_by_id(job_id)
+    if ok:
+        task.status = "queued"
+        task.error = None
+        db.commit()
+    return ok
+
+
+def requeue_publication_task(db: Session, publication: Publication) -> bool:
+    job_id = publication.queue_job_id
+    if not job_id:
+        return False
+    ok = requeue_job_by_id(job_id)
+    if ok:
+        publication.status = "queued"
+        db.commit()
+    return ok
+
