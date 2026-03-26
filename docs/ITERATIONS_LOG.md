@@ -551,3 +551,45 @@
 ### Ограничения на текущем шаге
 - Управление `default_model` выполняется как свободный текст (валидация формата/доступности модели остается на API/LLM-провайдере).
 - UI выбора модели из списка доступных провайдеров пока не реализован.
+
+---
+
+## Итерация 14 — Расширенное редактирование источников в Telegram-боте
+
+### Что сделано
+- Расширен раздел `Источники` в bot UI beyond `name/cron`:
+  - добавлены новые action-кнопки в карточке источника:
+    - `Изменить тип`,
+    - `Изменить URL`,
+    - `Переключить перевод`,
+    - `Изменить язык по умолчанию`.
+- Реализованы новые edit-flow в `bot/handlers/sources.py`:
+  - FSM-поток изменения `type` (`rss|site`),
+  - FSM-поток изменения `url` (базовая валидация `http(s)`),
+  - toggle `translate_enabled` через чтение текущего source и `PUT`,
+  - FSM-поток изменения `default_target_language`.
+- Сохранена существующая логика Iteration 11:
+  - создание источника через FSM,
+  - редактирование `name` и `schedule_cron`,
+  - parse-now / enable-toggle / delete.
+
+### Измененные файлы (ключевые)
+- `bot/handlers/sources.py`
+- `tests/bot/test_sources_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен тест `tests/bot/test_sources_handler_helpers.py`:
+  - проверка новых callback-кнопок source-card:
+    - `source_edit_type_<id>`,
+    - `source_edit_url_<id>`,
+    - `source_edit_translate_<id>`,
+    - `source_edit_lang_<id>`.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Для `default_target_language` в боте используется базовая длиновая проверка (минимум 2 символа); строгая валидация кодов языка остается на уровне API/бизнес-логики.
+- Поле `extraction_rules` по-прежнему редактируется через API (в bot UI пока не добавлено).

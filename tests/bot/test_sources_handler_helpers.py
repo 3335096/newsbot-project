@@ -42,6 +42,10 @@ def test_source_keyboard_contains_expected_actions() -> None:
     callback_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
     assert "source_edit_name_42" in callback_data
     assert "source_edit_cron_42" in callback_data
+    assert "source_edit_type_42" in callback_data
+    assert "source_edit_url_42" in callback_data
+    assert "source_edit_translate_42" in callback_data
+    assert "source_edit_lang_42" in callback_data
     assert "source_parse_now_42" in callback_data
     assert "source_toggle:42:0" in callback_data
     assert "source_delete_42" in callback_data

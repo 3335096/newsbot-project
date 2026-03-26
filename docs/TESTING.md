@@ -42,7 +42,7 @@
    - queue-admin stats (`redis_ok`, snapshots по очередям).
 12. Bot sources UX/helpers:
    - формат карточки источника и значения по умолчанию,
-   - состав action-кнопок для источника (edit/parse/toggle/delete),
+   - состав action-кнопок для источника (name/cron/type/url/translate/lang + parse/toggle/delete),
    - наличие кнопки создания источника в общем меню источников.
 13. Bot admin UX/helpers:
    - структура админ-меню,

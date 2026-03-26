@@ -116,7 +116,7 @@ Flow:
 - `GET /api/publications/{id}`
 - `POST /api/publications/{id}/retry`
 
-## 7. Раздел "Источники" (Iteration 11)
+## 7. Раздел "Источники" (Iteration 14)
 
 В главном меню доступна кнопка `Источники`.
 
@@ -125,6 +125,10 @@ Flow:
 - создание источника через FSM-диалог в боте (`POST /api/sources`),
 - редактирование названия (`PUT /api/sources/{id}`),
 - редактирование cron (`PUT /api/sources/{id}`),
+- редактирование типа (`rss|site`) (`PUT /api/sources/{id}`),
+- редактирование URL (`PUT /api/sources/{id}`),
+- переключение `translate_enabled` (`PUT /api/sources/{id}`),
+- редактирование `default_target_language` (`PUT /api/sources/{id}`),
 - ручной запуск парсинга (`POST /api/sources/{id}/parse-now`),
 - включение/выключение источника (`PUT /api/sources/{id}` с полем `enabled`),
 - удаление источника (`DELETE /api/sources/{id}`).
@@ -138,4 +142,4 @@ Flow:
 
 ## 8. Известные ограничения текущей версии
 
-- Для источников через бот в MVP реализовано редактирование только названия и cron; расширенные поля (`url`, `type`, `translate_enabled`, `default_target_language`, `extraction_rules`) пока редактируются через API.
+- Для источников через бот пока не реализовано редактирование `extraction_rules`; это остается на уровне API.
