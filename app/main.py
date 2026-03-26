@@ -17,7 +17,7 @@ from app.api.routers import (
 )
 from app.metrics import observe_http_request
 from app.services.scheduler import scheduler
-from bot.runtime import close_bot_session, ensure_bot_commands
+from bot.runtime import close_bot_session, ensure_bot_commands, sync_webhook_mode
 
 app = FastAPI()
 
@@ -49,6 +49,11 @@ async def prometheus_middleware(request: Request, call_next):
 async def startup_event():
     logger.info("Starting up...")
     await ensure_bot_commands()
+    try:
+        sync_result = await sync_webhook_mode()
+        logger.info("Webhook autosync result: {}", sync_result)
+    except Exception as exc:
+        logger.exception("Webhook autosync failed: {}", exc)
     scheduler.start()
     scheduler.load_scheduled_jobs()
 

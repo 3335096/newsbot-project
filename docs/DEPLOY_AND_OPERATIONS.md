@@ -147,6 +147,20 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
 - При изменении источника (`enabled`/`schedule_cron`) scheduler автоматически
   синхронизирует job `fetch_source_{id}`.
 
+### Auto-sync webhook режима на старте API (Iteration 20)
+
+На startup API выполняется синхронизация webhook режима:
+- `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP=true`:
+  - если `TELEGRAM_USE_WEBHOOK=true`:
+    - выполняется `setWebhook` на `TELEGRAM_WEBHOOK_URL`,
+    - `secret_token` берется из `TELEGRAM_WEBHOOK_SECRET` (если задан),
+    - при `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET=true` предварительно выполняется delete webhook с `drop_pending_updates=true`.
+  - если `TELEGRAM_USE_WEBHOOK=false`:
+    - webhook удаляется (`deleteWebhook`),
+    - `drop_pending_updates` контролируется `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`.
+- `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP=false`:
+  - авто-синхронизация отключена, режим управляется вручную через `/bot/webhook/set|delete`.
+
 ## 5. Управление доступом
 
 - Белый список:

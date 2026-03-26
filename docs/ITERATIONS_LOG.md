@@ -846,3 +846,48 @@
 ### Ограничения на текущем шаге
 - В MVP webhook management защищен единым shared-токеном (`WEBHOOK_ADMIN_TOKEN`) без ротации/TTL и без отдельной ролевой матрицы API.
 - В ops-интерфейсе Telegram webhook set использует конфигурационный URL (`TELEGRAM_WEBHOOK_URL`); интерактивный ввод URL в боте пока не реализован.
+
+---
+
+## Итерация 20 — Webhook auto-sync on API startup
+
+### Что сделано
+- Добавлена автоматическая синхронизация webhook-режима на старте API:
+  - новый runtime helper `sync_webhook_mode()` в `bot/runtime.py`,
+  - интеграция вызова в `startup_event` (`app/main.py`).
+- Поведение auto-sync:
+  - если `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP=false` → синхронизация пропускается;
+  - если `TELEGRAM_USE_WEBHOOK=true`:
+    - при наличии `TELEGRAM_WEBHOOK_URL` вызывается `setWebhook`,
+    - при `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET=true` перед set выполняется `deleteWebhook(drop_pending_updates=true)`,
+    - используется `TELEGRAM_WEBHOOK_SECRET` как `secret_token` (если задан).
+  - если `TELEGRAM_USE_WEBHOOK=false`:
+    - вызывается `deleteWebhook(...)`,
+    - флаг `drop_pending_updates` берется из `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`.
+- Добавлены новые env-флаги:
+  - `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP` (default `true`),
+  - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET` (default `false`),
+  - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE` (default `false`).
+
+### Измененные файлы (ключевые)
+- `bot/runtime.py`
+- `app/main.py`
+- `core/config.py`
+- `.env.example`
+- `tests/bot/test_runtime_webhook_sync.py`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен `tests/bot/test_runtime_webhook_sync.py`:
+  - skip при отключенном autosync,
+  - set webhook при webhook-режиме (включая drop pending on set),
+  - delete webhook при polling-режиме,
+  - skip при пустом `TELEGRAM_WEBHOOK_URL`.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Auto-sync не проверяет идемпотентно текущий `webhook_info.url` перед set/delete (выполняется операционно безопасный, но не оптимальный вызов).
+- Ошибки auto-sync логируются и не блокируют подъем API, чтобы не создавать ложный downtime из-за внешней деградации Telegram Bot API.

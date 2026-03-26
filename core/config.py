@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     TELEGRAM_WEBHOOK_SECRET: str = ""
     TELEGRAM_USE_WEBHOOK: bool = False
     TELEGRAM_WEBHOOK_URL: str = ""
+    TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP: bool = True
+    TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET: bool = False
+    TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE: bool = False
     WEBHOOK_ADMIN_TOKEN: str = ""
 
     OPENROUTER_API_KEY: str = ""

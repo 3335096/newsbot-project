@@ -58,6 +58,9 @@
 - `TELEGRAM_WEBHOOK_URL`
 - `TELEGRAM_USE_WEBHOOK`
 - `WEBHOOK_ADMIN_TOKEN`
+- `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP`
+- `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET`
+- `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`
 - `DEFAULT_TARGET_LANGUAGE`
 - `LLM_DEFAULT_MODEL_TRANSLATE`
 - `LLM_DEFAULT_MODEL_REWRITE`
@@ -71,7 +74,7 @@
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–17:
+На данный момент завершены итерации 1–20:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -92,3 +95,4 @@
 - Итер. 17: production webhook для Telegram — endpoint `/bot/webhook` принимает реальные updates, валидирует `X-Telegram-Bot-Api-Secret-Token` (если задан), и передает апдейт в общий `aiogram.Dispatcher` runtime.
 - Итер. 18: операционное управление webhook — добавлены API endpoints `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`, а `bot.main` стал mode-aware (`TELEGRAM_USE_WEBHOOK`) и не запускает polling в webhook-профиле.
 - Итер. 19: безопасность и bot-ops интеграция webhook — для `info/set/delete` добавлена защита `X-Webhook-Admin-Token` (через `WEBHOOK_ADMIN_TOKEN`), а в разделе `Операции` появились кнопки `Webhook info/set/delete`.
+- Итер. 20: автоматическая синхронизация webhook-режима на старте API — добавлен `sync_webhook_mode()` (set/delete/skip по конфигу) с новыми флагами autosync/drop-pending, чтобы исключить ручной drift после перезапусков.

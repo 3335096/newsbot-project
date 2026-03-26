@@ -3,6 +3,7 @@ from __future__ import annotations
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from pydantic import BaseModel
+from loguru import logger
 
 from bot.handlers import admin, drafts, ops, settings as settings_handler, sources, start
 from core.config import settings
@@ -87,4 +88,33 @@ async def set_webhook(url: str, secret_token: str | None = None) -> bool:
 async def delete_webhook(drop_pending_updates: bool = False) -> bool:
     bot = get_bot()
     return await bot.delete_webhook(drop_pending_updates=drop_pending_updates)
+
+
+async def sync_webhook_mode() -> dict[str, str]:
+    if not settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP:
+        logger.info("Webhook autosync disabled by config")
+        return {"action": "skipped", "reason": "autosync_disabled"}
+
+    if settings.TELEGRAM_USE_WEBHOOK:
+        url = settings.TELEGRAM_WEBHOOK_URL.strip()
+        if not url:
+            logger.warning(
+                "Webhook mode enabled but TELEGRAM_WEBHOOK_URL is empty; skipping webhook set"
+            )
+            return {"action": "skipped", "reason": "missing_webhook_url"}
+        secret = settings.TELEGRAM_WEBHOOK_SECRET.strip() or None
+        if settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET:
+            await delete_webhook(drop_pending_updates=True)
+        await set_webhook(url=url, secret_token=secret)
+        logger.info("Webhook synchronized: set {}", url)
+        return {"action": "set", "url": url}
+
+    await delete_webhook(
+        drop_pending_updates=settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE
+    )
+    logger.info(
+        "Webhook synchronized: deleted (drop_pending_updates={})",
+        settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE,
+    )
+    return {"action": "deleted"}
 

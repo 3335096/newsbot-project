@@ -60,6 +60,12 @@
 16. Webhook endpoint:
    - проверка `X-Telegram-Bot-Api-Secret-Token`,
    - прием валидного update и передача в `Dispatcher.feed_update`.
+17. Webhook autosync runtime:
+   - `sync_webhook_mode` корректно отрабатывает сценарии:
+     - autosync disabled,
+     - webhook set при `TELEGRAM_USE_WEBHOOK=true`,
+     - webhook delete при polling mode,
+     - skip при пустом `TELEGRAM_WEBHOOK_URL`.
 17. Webhook operations API:
    - доступ к `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`
      защищен заголовком `X-Webhook-Admin-Token` (если задан `WEBHOOK_ADMIN_TOKEN`),
@@ -85,6 +91,7 @@ python3 -m pytest \
   tests/services/test_queue_reliability.py \
   tests/services/test_sources_router.py \
   tests/api/test_bot_webhook.py \
+  tests/bot/test_runtime_webhook_sync.py \
   tests/bot/test_sources_handler_helpers.py \
   tests/bot/test_admin_handler_helpers.py \
   tests/bot/test_ops_handler_helpers.py \
