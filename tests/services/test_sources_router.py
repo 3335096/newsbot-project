@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import Session, sessionmaker
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -18,7 +19,12 @@ from app.db.session import get_db
 
 
 def _db_session() -> Session:
-    engine = create_engine("sqlite:///:memory:", future=True)
+    engine = create_engine(
+        "sqlite://",
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
     return testing_session()
