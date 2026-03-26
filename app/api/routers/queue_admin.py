@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from app.metrics import observe_queue_depth, record_queue_event
@@ -40,6 +40,11 @@ class QueueOverviewOut(BaseModel):
 class RequeueOut(BaseModel):
     job_id: str
     status: str
+
+
+class FailedJobOut(BaseModel):
+    marker_job_id: str
+    original_job_id: str
 
 
 def _to_stats_out(snapshot) -> QueueStatsOut:
@@ -105,3 +110,19 @@ async def requeue_failed_job(job_id: str):
 
     record_queue_event(event="manual_requeue", queue_name=settings.QUEUE_FAILED_NAME)
     return RequeueOut(job_id=job_id, status="requeued")
+
+
+@router.get("/failed", response_model=list[FailedJobOut])
+async def list_failed_jobs(limit: int = Query(default=20, ge=1, le=100)):
+    failed_queue = get_failed_queue()
+    marker_ids = failed_queue.job_ids[:limit]
+    items: list[FailedJobOut] = []
+    for marker_id in marker_ids:
+        original_job_id = marker_id.replace("failed_", "", 1)
+        items.append(
+            FailedJobOut(
+                marker_job_id=marker_id,
+                original_job_id=original_job_id,
+            )
+        )
+    return items

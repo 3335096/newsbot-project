@@ -643,3 +643,59 @@
 ### Ограничения на текущем шаге
 - Операционный раздел доступен только администраторам (`TELEGRAM_ADMIN_IDS`), но в MVP остается текстовым (без графиков/истории).
 - В боте пока не реализованы операторские действия над failed jobs (requeue из UI); для этого используется API `/api/queue/failed/{job_id}/requeue`.
+
+---
+
+## Итерация 16 — Bot settings + failed requeue из UI
+
+### Что сделано
+- Закрыт "мертвый" пункт главного меню `Настройки`:
+  - добавлен новый handler `bot/handlers/settings.py`,
+  - реализован callback `show_settings`.
+- Добавлен API для пользовательских настроек:
+  - `GET /api/users/{telegram_user_id}/settings`,
+  - `POST /api/users/{telegram_user_id}/settings`,
+  - lazy upsert пользователя в таблицу `users` при первом обращении.
+- Реализованы настройки редактора в боте:
+  - `default_target_language` (FSM-ввод),
+  - `enable_images` (toggle),
+  - хранение в `users.settings`.
+- Расширен ops-раздел для операторских действий:
+  - добавлена кнопка `Показать failed jobs`,
+  - добавлен endpoint `GET /api/queue/failed` (список marker jobs),
+  - в боте отображаются кнопки `Requeue <job_id>` для ручного повторного запуска,
+  - сохранен fallback `/requeue_failed <job_id>`.
+- Обновлена главная клавиатура:
+  - удален дублирующий/нецелевой пункт `Правила модерации` из main menu (админ-функция остается через `/admin`),
+  - оставлены `Черновики / Источники / Операции / Настройки`.
+
+### Измененные файлы (ключевые)
+- `app/api/routers/users.py`
+- `app/api/routers/queue_admin.py`
+- `app/api/routers/__init__.py`
+- `app/main.py`
+- `bot/handlers/settings.py`
+- `bot/handlers/ops.py`
+- `bot/handlers/__init__.py`
+- `bot/main.py`
+- `bot/keyboards/main_menu.py`
+- `tests/bot/test_settings_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлены/расширены bot helper tests:
+  - `tests/bot/test_settings_handler_helpers.py`:
+    - keyboard настроек,
+    - текст отображения настроек.
+  - `tests/bot/test_ops_handler_helpers.py`:
+    - наличие `ops_failed_list`,
+    - keyboard failed requeue действий.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- В settings пока нет UI для выбора пресетов/моделей по умолчанию на пользователя (доступно к расширению).
+- `GET /api/queue/failed` возвращает marker job IDs без enriched metadata (время/ошибка), это operator-MVP.

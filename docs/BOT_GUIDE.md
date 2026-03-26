@@ -157,3 +157,27 @@ Flow:
   - показывает `status`, `redis_ok`, `worker_alive`, `worker_last_seen`.
 
 Для не-админов раздел недоступен (проверка по `TELEGRAM_ADMIN_IDS`).
+
+## 10. Настройки пользователя (Iteration 16)
+
+В меню доступна кнопка `Настройки`.
+
+Поддерживаемые действия:
+- просмотр текущих пользовательских параметров,
+- изменение `default_target_language`,
+- переключение `enable_images`.
+
+Хранение:
+- настройки сохраняются в профиле пользователя (`users.settings`) через API:
+  - `GET /api/users/{telegram_user_id}/settings`
+  - `POST /api/users/{telegram_user_id}/settings`
+
+## 11. Операторские действия по failed jobs (Iteration 16)
+
+В разделе `Операции` добавлено:
+- `Показать failed jobs` — список marker jobs из failed queue,
+- кнопки `Requeue <job_id>` для постановки задачи на повторную обработку.
+
+Используемые API:
+- `GET /api/queue/failed`
+- `POST /api/queue/failed/{job_id}/requeue`

@@ -15,6 +15,7 @@
 - `tests/bot/test_sources_handler_helpers.py`
 - `tests/bot/test_admin_handler_helpers.py`
 - `tests/bot/test_ops_handler_helpers.py`
+- `tests/bot/test_settings_handler_helpers.py`
 
 Покрытые сценарии:
 
@@ -51,7 +52,11 @@
      (system/user/default_model/toggle).
 14. Bot ops UX/helpers:
    - keyboard операционного раздела,
-   - форматирование queue stats/readiness payload в человекочитаемый текст.
+   - форматирование queue stats/readiness payload в человекочитаемый текст,
+   - keyboard requeue failed jobs.
+15. Bot settings UX/helpers:
+   - keyboard раздела настроек,
+   - отображение значений `default_target_language` и `enable_images`.
 
 ## Быстрый запуск тестов
 
@@ -67,7 +72,8 @@ python3 -m pytest \
   tests/services/test_sources_router.py \
   tests/bot/test_sources_handler_helpers.py \
   tests/bot/test_admin_handler_helpers.py \
-  tests/bot/test_ops_handler_helpers.py -q
+  tests/bot/test_ops_handler_helpers.py \
+  tests/bot/test_settings_handler_helpers.py -q
 ```
 
 ## Smoke-check (рекомендуется после изменений инфраструктуры)

@@ -15,6 +15,7 @@ def test_ops_keyboard_contains_actions() -> None:
     callback_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
     assert "ops_queue_stats" in callback_data
     assert "ops_readiness" in callback_data
+    assert "ops_failed_list" in callback_data
 
 
 def test_format_queue_stats_contains_core_fields() -> None:
@@ -44,3 +45,11 @@ def test_format_ready_contains_readiness_details() -> None:
     assert "status=ok" in text
     assert "redis_ok=True" in text
     assert "worker_alive=True" in text
+
+
+def test_failed_jobs_keyboard_contains_requeue_buttons() -> None:
+    kb = ops._failed_jobs_keyboard(["job-1", "job-2"])
+    callback_data = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "ops_requeue_failed:job-1" in callback_data
+    assert "ops_requeue_failed:job-2" in callback_data
+    assert "show_ops" in callback_data

@@ -13,6 +13,7 @@ from app.api.routers import (
     publications,
     queue_admin,
     sources,
+    users,
 )
 from app.metrics import observe_http_request
 from app.services.scheduler import scheduler
@@ -26,6 +27,7 @@ app.include_router(moderation.router, prefix="/api")
 app.include_router(publications.router, prefix="/api")
 app.include_router(sources.router, prefix="/api")
 app.include_router(queue_admin.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 app.include_router(metrics.router)
 app.include_router(bot_webhook.router)
 
