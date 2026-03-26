@@ -1131,3 +1131,39 @@
 ### Ограничения на текущем шаге
 - Для приватности ключи в Redis формируются по SHA-256 от входного токена, но still отражают факт попыток по одному и тому же вводу.
 - При отключенном fallback (`ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK=false`) и деградации Redis endpoint продолжит отвечать `401`, но без лимитирования (fail-open для доступности).
+
+---
+
+## Итерация 25 — CI enhancements (lint + type-check + security audit)
+
+### Что сделано
+- Расширен GitHub Actions pipeline отдельным quality/security job:
+  - `ruff` для lint-проверок,
+  - `mypy` для базовой type-проверки,
+  - `pip-audit` для проверки зависимостей на известные уязвимости.
+- Схема CI стала двухэтапной:
+  - `quality-and-security`,
+  - `tests-and-smoke` (выполняется после quality stage).
+- Добавлен baseline-конфиг в `pyproject.toml`:
+  - `tool.ruff` (target version, line length, исключения),
+  - `tool.mypy` (базовые настройки для текущего кодового стека).
+
+### Измененные файлы (ключевые)
+- `.github/workflows/ci.yml`
+- `pyproject.toml`
+- `README.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Тесты и проверки
+- Локально выполнены:
+  - `python -m ruff check .`
+  - `python -m mypy app bot core`
+  - `python -m pip_audit -r requirements.txt`
+  - `python -m pytest -q`
+  - smoke-check (`import app.main`, `import bot.main`, `alembic upgrade head --sql`)
+
+### Ограничения на текущем шаге
+- Mypy работает в базовом режиме (`ignore_missing_imports=true`) для постепенного внедрения строгой типизации.
+- `pip-audit` проверяет Python зависимости и не покрывает runtime-секреты/конфигурационные риски.

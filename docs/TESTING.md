@@ -111,6 +111,22 @@ DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -c 
 DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -m alembic upgrade head --sql
 ```
 
+## CI quality/security проверки (Iteration 25)
+
+Для локальной валидации перед push теперь рекомендуется добавлять:
+
+```bash
+python3 -m pip install ruff mypy pip-audit
+python3 -m ruff check .
+python3 -m mypy app bot core
+python3 -m pip_audit -r requirements.txt
+```
+
+Примечание:
+- `ruff` запускается в baseline-режиме по критическим ошибкам (`E9`, `F`) и не блокирует legacy style-замечания;
+- `mypy` проверяет production-код (`app`, `bot`, `core`) и исключает `tests/` и `migrations/`;
+- `pip-audit` падает при найденных известных уязвимостях в зафиксированных зависимостях.
+
 ## Что добавить дальше (рекомендуется)
 
 1. Тесты для `LLMTaskService`:

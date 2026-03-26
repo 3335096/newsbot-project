@@ -218,6 +218,15 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
   - smoke-check импортов,
   - `alembic upgrade head --sql`.
 
+### CI quality/security checks (Iteration 25)
+
+- В workflow `.github/workflows/ci.yml` добавлен отдельный job `quality-and-security`:
+  - `ruff check .` — базовый lint/syntax guardrail;
+  - `mypy app bot core` — статическая проверка типов по ключевым пакетам;
+  - `pip-audit -r requirements.txt` — аудит зависимостей на известные CVE.
+- Job `tests-and-smoke` теперь зависит от `quality-and-security` (`needs`),
+  поэтому тесты и smoke-check запускаются только после прохождения quality gates.
+
 ## 5. Управление доступом
 
 - Белый список:
