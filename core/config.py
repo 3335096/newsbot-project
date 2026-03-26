@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     ADMIN_API_RATE_LIMIT_COUNT: int = 60
     ADMIN_API_RATE_LIMIT_WINDOW_SECONDS: int = 60
     ADMIN_API_AUDIT_LOG_ENABLED: bool = True
+    ADMIN_API_RATE_LIMIT_REDIS_PREFIX: str = "newsbot:admin_auth:failures"
+    ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK: bool = True
 
     OPENROUTER_API_KEY: str = ""
     LLM_DEFAULT_MODEL_TRANSLATE: str = "openai/gpt-4o-mini"

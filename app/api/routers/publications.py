@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.publication import Publication
 from app.db.session import get_db
-from app.queue import fetch_job, get_failed_queue
+from app.queue import get_failed_queue
 from app.services.publisher_service import PublisherService
 from app.services.queue_dispatcher import enqueue_publication
 

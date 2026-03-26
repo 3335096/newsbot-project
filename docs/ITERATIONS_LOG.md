@@ -1093,3 +1093,77 @@
 ### Ограничения на текущем шаге
 - Unified admin auth пока token-based без ротации/TTL и без многоуровневой ролевой модели.
 - Часть endpoint-ов (`/api/llm/tasks`, `/api/publications`) остаются editor-facing и не защищаются `ADMIN_API_TOKEN`.
+
+---
+
+## Итерация 24 — Distributed admin rate-limit (Redis-backed) + fallback
+
+### Что сделано
+- Переведен rate-limit невалидных admin token попыток на Redis-backed модель:
+  - в `app/api/deps.py` добавлен Redis path для счетчика неуспешных попыток;
+  - счетчик общий для всех инстансов API (распределенный лимит).
+- Реализована безопасная деградация:
+  - если Redis недоступен и `ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK=true`,
+    dependency использует in-memory fallback (как в предыдущей итерации).
+- Добавлены новые настройки:
+  - `ADMIN_API_RATE_LIMIT_REDIS_PREFIX` (prefix ключей в Redis),
+  - `ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK` (включить/выключить fallback).
+- Сохранена текущая политика:
+  - audit warning log на невалидные токены (без логирования значения токена),
+  - `429` при превышении лимита неуспешных попыток.
+
+### Измененные файлы (ключевые)
+- `app/api/deps.py`
+- `core/config.py`
+- `.env.example`
+- `tests/api/test_admin_api_token_deps.py`
+- `README.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Тесты и проверки
+- Обновлен `tests/api/test_admin_api_token_deps.py`:
+  - сценарий Redis-backed rate-limit (через mock limiter),
+  - сценарий fallback на in-memory при деградации Redis.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Для приватности ключи в Redis формируются по SHA-256 от входного токена, но still отражают факт попыток по одному и тому же вводу.
+- При отключенном fallback (`ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK=false`) и деградации Redis endpoint продолжит отвечать `401`, но без лимитирования (fail-open для доступности).
+
+---
+
+## Итерация 25 — CI enhancements (lint + type-check + security audit)
+
+### Что сделано
+- Расширен GitHub Actions pipeline отдельным quality/security job:
+  - `ruff` для lint-проверок,
+  - `mypy` для базовой type-проверки,
+  - `pip-audit` для проверки зависимостей на известные уязвимости.
+- Схема CI стала двухэтапной:
+  - `quality-and-security`,
+  - `tests-and-smoke` (выполняется после quality stage).
+- Добавлен baseline-конфиг в `pyproject.toml`:
+  - `tool.ruff` (target version, line length, исключения),
+  - `tool.mypy` (базовые настройки для текущего кодового стека).
+
+### Измененные файлы (ключевые)
+- `.github/workflows/ci.yml`
+- `pyproject.toml`
+- `README.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Тесты и проверки
+- Локально выполнены:
+  - `python -m ruff check .`
+  - `python -m mypy app/api/deps.py app/services/queue_dispatcher.py app/services/worker_state.py app/queue.py`
+  - `python -m pip_audit -r requirements.txt --no-deps --disable-pip`
+  - `python -m pytest -q`
+  - smoke-check (`import app.main`, `import bot.main`, `alembic upgrade head --sql`)
+
+### Ограничения на текущем шаге
+- Mypy на текущем этапе включен точечно для критичных модулей очередей/admin auth; расширение на весь `app/bot/core` требует отдельного cleanup legacy type-debt.
+- `pip-audit` в CI запускается в режиме `--no-deps --disable-pip` (совместимость со средами без `python3-venv`), поэтому аудит ограничен зафиксированными пакетами из `requirements.txt` без резолвинга транзитивных зависимостей.

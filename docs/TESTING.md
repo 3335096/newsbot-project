@@ -78,6 +78,9 @@
 20. Admin dependency hardening:
    - rate-limit неверных попыток admin token (`429`),
    - корректная работа helper при валидном/невалидном `ADMIN_API_TOKEN`.
+21. Distributed admin rate-limit:
+   - Redis-backed shared limiter path (одинаковое поведение в multi-replica),
+   - in-memory fallback path при недоступном Redis.
 
 ## Быстрый запуск тестов
 
@@ -107,6 +110,28 @@ DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -c 
 DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -c "import bot.main; print('import bot.main: OK')"
 DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -m alembic upgrade head --sql
 ```
+
+## CI quality/security проверки (Iteration 25)
+
+Для локальной валидации перед push теперь рекомендуется добавлять:
+
+```bash
+python3 -m pip install ruff mypy pip-audit
+python3 -m ruff check .
+python3 -m mypy \
+  app/api/deps.py \
+  app/services/queue_dispatcher.py \
+  app/services/worker_state.py \
+  app/queue.py
+python3 -m pip_audit --no-deps --disable-pip -r requirements.txt
+```
+
+Примечание:
+- `ruff` запускается в baseline-режиме по критическим ошибкам (`E9`, `F`) и не блокирует legacy style-замечания;
+- `mypy` на текущем этапе проверяет критичные инфраструктурные модули очередей/админ-auth
+  (дальше покрытие расширяется инкрементально);
+- `pip-audit` запускается в baseline-режиме (`--no-deps --disable-pip`) для совместимости с CI/runtime
+  окружением без `python3-venv`; проверка выполняется по зафиксированным direct dependencies.
 
 ## Что добавить дальше (рекомендуется)
 

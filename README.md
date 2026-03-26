@@ -61,6 +61,8 @@
 - `ADMIN_API_RATE_LIMIT_COUNT`
 - `ADMIN_API_RATE_LIMIT_WINDOW_SECONDS`
 - `ADMIN_API_AUDIT_LOG_ENABLED`
+- `ADMIN_API_RATE_LIMIT_REDIS_PREFIX`
+- `ADMIN_API_RATE_LIMIT_ALLOW_INMEMORY_FALLBACK`
 - `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP`
 - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET`
 - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`
@@ -77,7 +79,7 @@
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–21:
+На данный момент завершены итерации 1–25:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -102,4 +104,5 @@
 - Итер. 21: production hardening — unified admin API token (`X-Admin-Api-Token`) для admin/ops endpoint-ов, миграция lifecycle на FastAPI lifespan, и базовый CI workflow в GitHub Actions (pytest + smoke).
 - Итер. 22: security hardening admin auth — удален legacy fallback `WEBHOOK_ADMIN_TOKEN`, введен strict `ADMIN_API_TOKEN` с базовым rate-limit для невалидных попыток (`429`) и audit logging.
 - Итер. 23: webhook autosync idempotency — `sync_webhook_mode()` теперь делает pre-check текущего `webhook_info.url` и пропускает лишние set/delete операции (`already_set` / `already_deleted`), снижая шум вызовов к Telegram API.
-- Итер. 22: security hardening admin API — удален legacy `WEBHOOK_ADMIN_TOKEN` fallback, включен строгий `ADMIN_API_TOKEN` для admin endpoints, добавлены базовый rate-limit и audit logging для невалидных admin token попыток.
+- Итер. 24: distributed admin rate-limit — ограничение невалидных `X-Admin-Api-Token` вынесено в Redis (shared между репликами) с in-memory fallback при деградации Redis и audit logging.
+- Итер. 25: CI enhancements — добавлены quality/security проверки в GitHub Actions: `ruff` (lint), `mypy` (type-check), `pip-audit` (поиск уязвимостей в зависимостях).
