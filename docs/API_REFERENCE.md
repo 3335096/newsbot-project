@@ -104,7 +104,7 @@ Prometheus-метрики приложения в формате `text/plain; ve
 
 ### `POST /api/llm/tasks`
 
-Запуск LLM-задачи для черновика.
+Постановка LLM-задачи для черновика в очередь (асинхронно).
 
 **Тело запроса:**
 
@@ -133,11 +133,35 @@ Prometheus-метрики приложения в формате `text/plain; ve
   "task_type": "summary",
   "preset": "summary",
   "model": "openai/gpt-4o-mini",
-  "status": "success",
-  "result": "...",
+  "status": "queued",
+  "result": null,
   "error": null
 }
 ```
+
+### `GET /api/llm/tasks/{task_id}`
+
+Получение актуального статуса и результата LLM-задачи.
+
+### `POST /api/llm/tasks/{task_id}/retry`
+
+Повторная постановка завершенной (`success`) или ошибочной (`error`) задачи в очередь.
+
+---
+
+## Публикации (`/api/publications`)
+
+### `POST /api/publications`
+
+Создание публикации. При `publish_now=true` публикация ставится в очередь worker-а.
+
+### `GET /api/publications/{publication_id}`
+
+Получение статуса публикации.
+
+### `POST /api/publications/{publication_id}/retry`
+
+Повторная постановка публикации в очередь (для `error`/`queued`/`scheduled`).
 
 ---
 

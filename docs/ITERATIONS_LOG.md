@@ -278,3 +278,60 @@
 ### Ограничения на текущем шаге
 - Метрики не агрегируют бизнес-сущности по source_id/channel_id (умышленно, чтобы избежать высокой cardinality label-ов).
 - Endpoint `/metrics` открыт без auth в рамках MVP и должен защищаться на уровне инфраструктуры (ingress/reverse proxy/private network).
+
+---
+
+## Итерация 8 — Асинхронные очереди (Redis + RQ) для LLM и публикаций
+
+### Что сделано
+- Внедрена очередь фоновых задач на базе Redis + RQ:
+  - добавлен слой очередей `app/queue.py`,
+  - добавлен worker entrypoint `worker.py`,
+  - добавлены фоновые job handlers `app/services/background_jobs.py`.
+- LLM-задачи переведены в async-поток:
+  - `POST /api/llm/tasks` теперь создает `llm_tasks` со статусом `queued` и ставит job в очередь,
+  - добавлен endpoint `GET /api/llm/tasks/{task_id}` для проверки статуса/результата,
+  - добавлен endpoint `POST /api/llm/tasks/{task_id}/retry` для повторного запуска.
+- Публикации переведены в async-поток:
+  - `POST /api/publications` при `publish_now=true` ставит публикацию в очередь вместо синхронной отправки,
+  - добавлен endpoint `POST /api/publications/{publication_id}/retry`,
+  - scheduler теперь enqueue-ит due-публикации (`queued/scheduled`), а не отправляет их синхронно.
+- Добавлена идемпотентность очередей на уровне БД:
+  - поля `queue_job_id` в `llm_tasks` и `publications`,
+  - `channel_alias` в `publications` для сохранения ключа канала.
+- Добавлена миграция:
+  - `20260325_0005_async_queue_statuses.py`
+  - нормализует статусы и добавляет ограничения:
+    - `llm_tasks.status IN ('queued','running','success','error')`
+    - `publications.status IN ('queued','running','scheduled','success','error')`
+    - unique для `queue_job_id`.
+- Добавлен тест очередного диспетчера:
+  - `tests/services/test_queue_dispatcher.py` (enqueue queued + due scheduled, skip future scheduled).
+
+### Измененные файлы (ключевые)
+- `core/config.py`
+- `requirements.txt`
+- `docker-compose.yml`
+- `.env.example`
+- `worker.py`
+- `app/queue.py`
+- `app/services/background_jobs.py`
+- `app/services/queue_dispatcher.py`
+- `app/services/llm_task_service.py`
+- `app/services/publisher_service.py`
+- `app/services/scheduler.py`
+- `app/api/routers/llm.py`
+- `app/api/routers/publications.py`
+- `app/db/models/llm_task.py`
+- `app/db/models/publication.py`
+- `migrations/versions/20260325_0005_async_queue_statuses.py`
+- `tests/services/test_queue_dispatcher.py`
+
+### Проверки
+- Для Iteration 8 выполняются:
+  - unit-тесты сервисов (включая новый тест queue-dispatcher),
+  - smoke-check импортов и Alembic SQL generation.
+
+### Ограничения на текущем шаге
+- В MVP выбран RQ без отдельного persistent result backend (используется Redis result TTL).
+- Управление очередями (dead letter/priority queues) пока не выделено в отдельный админ-интерфейс.

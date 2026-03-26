@@ -1,6 +1,5 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from aiogram import Bot
 from loguru import logger
 import time
 from sqlalchemy import text
@@ -10,8 +9,7 @@ from app.metrics import record_scheduler_job
 from app.db.models.source import Source
 from app.db.session import SessionLocal
 from app.services.parser_service import ParserService
-from app.services.publisher_service import PublisherService
-from core.config import settings
+from app.services.queue_dispatcher import enqueue_due_publications
 
 class Scheduler:
     def __init__(self):
@@ -79,12 +77,10 @@ class Scheduler:
             started = time.monotonic()
             status = "success"
             db: Session = SessionLocal()
-            bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-            publisher = PublisherService(bot)
             try:
-                processed = await publisher.process_due_publications(db)
-                if processed:
-                    logger.info("Processed due publications: {}", processed)
+                enqueued = enqueue_due_publications(db)
+                if enqueued:
+                    logger.info("Enqueued due publications: {}", enqueued)
             except Exception as exc:
                 status = "error"
                 logger.exception("Scheduled publication job failed: {}", exc)
@@ -94,7 +90,6 @@ class Scheduler:
                     status=status,
                     duration_seconds=time.monotonic() - started,
                 )
-                await bot.session.close()
                 db.close()
 
         self.add_job(

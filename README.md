@@ -58,10 +58,16 @@
 - `LLM_DEFAULT_MODEL_TRANSLATE`
 - `LLM_DEFAULT_MODEL_REWRITE`
 - `LLM_DEFAULT_MODEL_SUMMARY`
+- `REDIS_URL`
+- `QUEUE_LLM_NAME`
+- `QUEUE_PUBLICATIONS_NAME`
+- `QUEUE_DEFAULT_TIMEOUT_SECONDS`
+- `QUEUE_RESULT_TTL_SECONDS`
+- `QUEUE_JOB_RETRIES`
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–7:
+На данный момент завершены итерации 1–8:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -70,3 +76,4 @@
 - Итер. 5: публикации в Telegram-каналы (немедленные и отложенные), шаблон поста, обработка лимитов Telegram.
 - Итер. 6: модерация (правила block/flag), интеграция в pipeline, админ-управление правилами, cleanup старых данных.
 - Итер. 7: monitoring (Prometheus `/metrics`, метрики API/сервисов/scheduler), UX-полировка интерфейса бота, hardening-тесты модерационного pipeline.
+- Итер. 8: асинхронные очереди Redis/RQ для LLM и публикаций, worker-процесс, retry/status API и перевод scheduler на enqueue-модель.

@@ -13,6 +13,13 @@
 3. Запустите сервисы:
    - `docker compose up --build`
 
+Состав сервисов:
+- `api` — FastAPI
+- `bot` — Telegram bot
+- `worker` — RQ worker для фоновых задач
+- `redis` — брокер очередей
+- `db` — PostgreSQL
+
 ## 2. Локальный запуск без Docker
 
 1. Установите зависимости:
@@ -23,6 +30,8 @@
    - `uvicorn app.main:app --host 0.0.0.0 --port 8000`
 4. Запустите бота:
    - `python -m bot.main`
+5. Запустите worker:
+   - `python -m worker`
 
 ## 3. Проверка после деплоя (smoke-check)
 
@@ -39,10 +48,23 @@
 - Ключевые точки для диагностики:
   - ошибки LLM запросов (OpenRouter),
   - ошибки миграций,
-  - ошибки обработки callback в боте.
+  - ошибки обработки callback в боте,
+  - ошибки RQ worker/Redis (очереди `llm`, `publications`).
 - Метрики Prometheus доступны по endpoint:
   - `GET /metrics`
   - формат: `text/plain; version=0.0.4` (prometheus-client)
+
+### Очереди и асинхронные задачи (Iteration 8)
+
+- Брокер: Redis (`REDIS_URL`)
+- Очереди:
+  - `QUEUE_LLM_NAME` (по умолчанию `llm`)
+  - `QUEUE_PUBLICATIONS_NAME` (по умолчанию `publications`)
+- Worker:
+  - `python -m worker`
+- Retry:
+  - на уровне RQ (`QUEUE_JOB_RETRIES`)
+  - интервалы retry задаются в приложении (5s, 15s, 30s).
 
 ### Что мониторить в первую очередь
 

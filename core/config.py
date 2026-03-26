@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     LLM_DEFAULT_MODEL_SUMMARY: str = "openai/gpt-4o-mini"
     LLM_DEFAULT_MODEL_REWRITE: str = "openai/gpt-4o-mini"
 
+    REDIS_URL: str = "redis://redis:6379/0"
+    QUEUE_LLM_NAME: str = "llm"
+    QUEUE_PUBLICATIONS_NAME: str = "publications"
+    QUEUE_DEFAULT_TIMEOUT_SECONDS: int = 600
+    QUEUE_RESULT_TTL_SECONDS: int = 86400
+    QUEUE_JOB_RETRIES: int = 3
+
     DEFAULT_TARGET_LANGUAGE: str = "ru"
     ENABLE_IMAGES: bool = True
 

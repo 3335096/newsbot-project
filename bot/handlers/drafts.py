@@ -201,8 +201,9 @@ async def publish_now_callback(callback: CallbackQuery):
             return
         publication = response.json()
         await callback.message.answer(
-            f"Опубликовано: id={publication['id']}, "
-            f"статус={publication['status']}, message_id={publication.get('message_id')}"
+            f"Публикация поставлена в очередь: id={publication['id']}, "
+            f"статус={publication['status']}\n"
+            "Проверьте карточку публикации позже через API /api/publications/{id}."
         )
     await callback.answer()
 
@@ -263,6 +264,6 @@ async def _run_llm_and_report(
             return
         task = response.json()
         await callback.message.answer(
-            f"LLM-задача выполнена: id={task['id']}, статус={task['status']}\n"
-            f"Результат:\n{(task.get('result') or '')[:1200]}"
+            f"LLM-задача поставлена в очередь: id={task['id']}, статус={task['status']}\n"
+            f"Проверьте результат позже через API: /api/llm/tasks/{task['id']}"
         )

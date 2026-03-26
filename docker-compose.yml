@@ -1,5 +1,15 @@
 version: "3.9"
 services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   db:
     image: postgres:16
     environment:
@@ -24,6 +34,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8000:8000"
     command: ["bash", "-lc", "alembic upgrade head || python scripts/init_db.py; uvicorn app.main:app --host 0.0.0.0 --port 8000"]
@@ -37,6 +49,20 @@ services:
       api:
         condition: service_started
     command: ["python", "-m", "bot.main"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    command: ["python", "-m", "worker"]
 
 volumes:
   dbdata:

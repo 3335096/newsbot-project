@@ -23,7 +23,7 @@ class PublishResult:
 
 
 class PublisherService:
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: Bot | None):
         self.bot = bot
 
     async def create_publication(
@@ -45,7 +45,7 @@ class PublisherService:
             .filter(Publication.draft_id == draft_id, Publication.channel_id == channel_id)
             .first()
         )
-        if existing and existing.status in {"queued", "scheduled", "published"}:
+        if existing and existing.status in {"queued", "scheduled", "success"}:
             record_publication_event(event="create_skipped_existing", status=existing.status)
             return existing
 
@@ -53,6 +53,7 @@ class PublisherService:
         publication = Publication(
             draft_id=draft_id,
             channel_id=channel_id,
+            channel_alias=channel_key,
             status=status,
             scheduled_at=scheduled_at if not publish_now else None,
             target_language=draft.target_language,
@@ -68,6 +69,8 @@ class PublisherService:
         db: Session,
         publication: Publication,
     ) -> PublishResult:
+        if self.bot is None:
+            raise ValueError("Bot instance is required to process publication")
         draft = db.query(ArticleDraft).filter(ArticleDraft.id == publication.draft_id).first()
         if not draft:
             publication.status = "error"
@@ -119,7 +122,8 @@ class PublisherService:
                         message_ids.append(msg.message_id)
 
             publication.message_id = message_ids[0] if message_ids else None
-            publication.status = "published"
+            publication.status = "success"
+            publication.queue_job_id = None
             publication.published_at = datetime.now(timezone.utc)
             publication.log = f"Published messages: {message_ids}"
             draft.status = "published"
@@ -133,6 +137,7 @@ class PublisherService:
             return PublishResult(publication=publication, sent_message_ids=message_ids)
         except Exception as exc:
             publication.status = "error"
+            publication.queue_job_id = None
             publication.log = str(exc)
             db.commit()
             db.refresh(publication)
