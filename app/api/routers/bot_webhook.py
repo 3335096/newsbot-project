@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 from aiogram.types import Update
 
-from app.api.deps import require_admin_api_token, require_legacy_webhook_admin_token
+from app.api.deps import require_admin_api_token
 from bot.runtime import (
     delete_webhook,
     get_bot,
@@ -50,7 +50,6 @@ async def bot_webhook(
 @router.get("/webhook/info")
 async def bot_webhook_info(
     _: None = Depends(require_admin_api_token),
-    __: None = Depends(require_legacy_webhook_admin_token),
 ):
     info = await get_webhook_info()
     return info.model_dump()
@@ -60,7 +59,6 @@ async def bot_webhook_info(
 async def bot_webhook_set(
     payload: WebhookSetPayload,
     _: None = Depends(require_admin_api_token),
-    __: None = Depends(require_legacy_webhook_admin_token),
 ):
     url = (payload.url or settings.TELEGRAM_WEBHOOK_URL).strip()
     if not url:
@@ -81,7 +79,6 @@ async def bot_webhook_set(
 async def bot_webhook_delete(
     drop_pending_updates: bool = False,
     _: None = Depends(require_admin_api_token),
-    __: None = Depends(require_legacy_webhook_admin_token),
 ):
     applied = await delete_webhook(drop_pending_updates=drop_pending_updates)
     return WebhookOperationOut(status="ok", applied=bool(applied), url=None)
