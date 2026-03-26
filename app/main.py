@@ -24,7 +24,10 @@ from bot.runtime import close_bot_session, ensure_bot_commands, sync_webhook_mod
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up...")
-    await ensure_bot_commands()
+    try:
+        await ensure_bot_commands()
+    except Exception as exc:
+        logger.exception("Failed to ensure bot commands: {}", exc)
     try:
         sync_result = await sync_webhook_mode()
         logger.info("Webhook autosync result: {}", sync_result)
