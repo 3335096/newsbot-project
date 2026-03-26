@@ -16,7 +16,7 @@ class PresetEditState(StatesGroup):
 
 
 def _admin_api_headers() -> dict[str, str]:
-    token = settings.ADMIN_API_TOKEN.strip() or settings.WEBHOOK_ADMIN_TOKEN.strip()
+    token = settings.ADMIN_API_TOKEN.strip()
     if not token:
         return {}
     return {"X-Admin-Api-Token": token}

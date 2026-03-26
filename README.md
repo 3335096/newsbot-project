@@ -57,8 +57,10 @@
 - `TELEGRAM_WEBHOOK_SECRET`
 - `TELEGRAM_WEBHOOK_URL`
 - `TELEGRAM_USE_WEBHOOK`
-- `WEBHOOK_ADMIN_TOKEN`
 - `ADMIN_API_TOKEN`
+- `ADMIN_API_RATE_LIMIT_COUNT`
+- `ADMIN_API_RATE_LIMIT_WINDOW_SECONDS`
+- `ADMIN_API_AUDIT_LOG_ENABLED`
 - `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP`
 - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET`
 - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`
@@ -98,3 +100,4 @@
 - Итер. 19: безопасность и bot-ops интеграция webhook — для `info/set/delete` добавлена защита `X-Webhook-Admin-Token` (через `WEBHOOK_ADMIN_TOKEN`), а в разделе `Операции` появились кнопки `Webhook info/set/delete`.
 - Итер. 20: автоматическая синхронизация webhook-режима на старте API — добавлен `sync_webhook_mode()` (set/delete/skip по конфигу) с новыми флагами autosync/drop-pending, чтобы исключить ручной drift после перезапусков.
 - Итер. 21: production hardening — unified admin API token (`X-Admin-Api-Token`) для admin/ops endpoint-ов, миграция lifecycle на FastAPI lifespan, и базовый CI workflow в GitHub Actions (pytest + smoke).
+- Итер. 22: security hardening admin API — удален legacy `WEBHOOK_ADMIN_TOKEN` fallback, включен строгий `ADMIN_API_TOKEN` для admin endpoints, добавлены базовый rate-limit и audit logging для невалидных admin token попыток.

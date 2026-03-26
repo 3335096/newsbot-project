@@ -243,16 +243,13 @@ async def ops_requeue_failed(callback: CallbackQuery):
 
 
 def _webhook_headers() -> dict[str, str]:
-    token = settings.ADMIN_API_TOKEN.strip() or settings.WEBHOOK_ADMIN_TOKEN.strip()
+    token = settings.ADMIN_API_TOKEN.strip()
     if not token:
         return {}
     return {"X-Admin-Api-Token": token}
 
 
 def _admin_api_headers() -> dict[str, str]:
-    token = settings.ADMIN_API_TOKEN.strip()
-    if token:
-        return {"X-Admin-Api-Token": token}
     return _webhook_headers()
 
 

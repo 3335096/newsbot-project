@@ -894,6 +894,108 @@
 
 ---
 
+## Итерация 21 — Unified admin auth + lifespan + CI
+
+### Что сделано
+- Добавлен unified admin dependency:
+  - `app/api/deps.py` с `require_admin_api_token`.
+  - Заголовок: `X-Admin-Api-Token`.
+  - Защищены endpoint-ы:
+    - `/api/queue/*`,
+    - `/api/moderation/*`,
+    - `POST /api/llm/presets/{preset_name}`,
+    - `/bot/webhook/info|set|delete`.
+- Обновлены bot handlers для отправки unified admin header:
+  - `bot/handlers/admin.py`,
+  - `bot/handlers/ops.py`.
+- Переведен lifecycle FastAPI на lifespan:
+  - удалены deprecated `@app.on_event("startup"/"shutdown")`,
+  - startup/shutdown логика перенесена в `lifespan` в `app/main.py`.
+- Добавлен CI workflow:
+  - `.github/workflows/ci.yml`,
+  - steps: install deps, `pytest -q`, import smoke, `alembic upgrade head --sql`.
+
+### Измененные файлы (ключевые)
+- `app/api/deps.py`
+- `app/api/routers/queue_admin.py`
+- `app/api/routers/moderation.py`
+- `app/api/routers/llm.py`
+- `app/api/routers/bot_webhook.py`
+- `bot/handlers/admin.py`
+- `bot/handlers/ops.py`
+- `app/main.py`
+- `.github/workflows/ci.yml`
+- `.env.example`
+- `tests/api/test_admin_api_token_deps.py`
+- `tests/api/test_bot_webhook.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `tests/services/test_queue_reliability.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен `tests/api/test_admin_api_token_deps.py`:
+  - `401` при неверном `X-Admin-Api-Token` для queue/moderation/llm admin endpoint-ов.
+- Обновлены webhook/admin/bot helper tests под unified header.
+- Полный прогон:
+  - `python3 -m pytest -q` (green),
+  - smoke-check импортов и `alembic upgrade head --sql` (green).
+
+### Ограничения на текущем шаге
+- Введен единый shared admin token (`ADMIN_API_TOKEN`) без ролевой матрицы и без per-endpoint token scopes.
+- CI пока базовый (pytest + smoke), без lint/type-check/security scan.
+
+---
+
+## Итерация 22 — Strict admin token + rate-limit/audit для admin API
+
+### Что сделано
+- Удален legacy fallback `WEBHOOK_ADMIN_TOKEN` из активной auth-логики:
+  - unified dependency теперь использует только `ADMIN_API_TOKEN`.
+- Усилен `require_admin_api_token`:
+  - добавлен rate-limit на неуспешные попытки (`429` при превышении),
+  - добавлен audit warning log на невалидные токены (без логирования значения токена).
+- Новые конфиги:
+  - `ADMIN_API_RATE_LIMIT_COUNT` (default `60`),
+  - `ADMIN_API_RATE_LIMIT_WINDOW_SECONDS` (default `60`),
+  - `ADMIN_API_AUDIT_LOG_ENABLED` (default `true`).
+- Bot handlers переведены на strict `ADMIN_API_TOKEN` для admin API вызовов.
+
+### Измененные файлы (ключевые)
+- `app/api/deps.py`
+- `core/config.py`
+- `.env.example`
+- `bot/handlers/admin.py`
+- `bot/handlers/ops.py`
+- `tests/api/test_admin_api_token_deps.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `tests/services/test_queue_reliability.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен `tests/api/test_admin_api_token_deps.py`:
+  - проверка обязательности `ADMIN_API_TOKEN`,
+  - проверка rate-limit (`429` после лимита невалидных попыток).
+- Обновлены helper tests под strict `ADMIN_API_TOKEN`.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Rate-limit хранится in-memory процесса API (не shared между репликами и сбрасывается при рестарте).
+- Audit logging выполняется в application logs без выделенного audit sink.
+
+---
+
 ## Итерация 21 — Unified admin API auth + lifespan + CI
 
 ### Что сделано

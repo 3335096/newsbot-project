@@ -203,5 +203,5 @@ Flow:
 Безопасность:
 - bot отправляет unified admin header:
   - `X-Admin-Api-Token: <token>`;
-- токен берется из `ADMIN_API_TOKEN`, а при пустом `ADMIN_API_TOKEN` — fallback к `WEBHOOK_ADMIN_TOKEN`;
+- токен берется строго из `ADMIN_API_TOKEN`;
 - при неверном токене API возвращает `401`.

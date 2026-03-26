@@ -60,38 +60,29 @@ def test_failed_jobs_keyboard_contains_requeue_buttons() -> None:
 
 def test_webhook_headers_empty_without_token() -> None:
     original_admin = ops.settings.ADMIN_API_TOKEN
-    original_webhook = ops.settings.WEBHOOK_ADMIN_TOKEN
     ops.settings.ADMIN_API_TOKEN = ""
-    ops.settings.WEBHOOK_ADMIN_TOKEN = ""
     try:
         headers = ops._webhook_headers()
         assert headers == {}
     finally:
         ops.settings.ADMIN_API_TOKEN = original_admin
-        ops.settings.WEBHOOK_ADMIN_TOKEN = original_webhook
 
 
 def test_webhook_headers_includes_admin_token() -> None:
     original_admin = ops.settings.ADMIN_API_TOKEN
-    original_webhook = ops.settings.WEBHOOK_ADMIN_TOKEN
-    ops.settings.ADMIN_API_TOKEN = ""
-    ops.settings.WEBHOOK_ADMIN_TOKEN = "ops-token"
+    ops.settings.ADMIN_API_TOKEN = "ops-token"
     try:
         headers = ops._webhook_headers()
         assert headers == {"X-Admin-Api-Token": "ops-token"}
     finally:
         ops.settings.ADMIN_API_TOKEN = original_admin
-        ops.settings.WEBHOOK_ADMIN_TOKEN = original_webhook
 
 
 def test_admin_api_headers_prefers_admin_api_token() -> None:
     original_admin = ops.settings.ADMIN_API_TOKEN
-    original_webhook = ops.settings.WEBHOOK_ADMIN_TOKEN
     ops.settings.ADMIN_API_TOKEN = "admin-token"
-    ops.settings.WEBHOOK_ADMIN_TOKEN = "legacy-token"
     try:
         headers = ops._admin_api_headers()
         assert headers == {"X-Admin-Api-Token": "admin-token"}
     finally:
         ops.settings.ADMIN_API_TOKEN = original_admin
-        ops.settings.WEBHOOK_ADMIN_TOKEN = original_webhook

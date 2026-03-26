@@ -49,12 +49,12 @@ def test_queue_admin_reports_worker_alive_from_recent_heartbeat() -> None:
     fake.set(WORKER_HEARTBEAT_KEY, now_ts)
 
     original_queue_snapshot = queue_admin.queue_snapshot
-    original_require_admin_api_token = queue_admin.require_admin_api_token
     original_get_conn_queue = queue_module.get_redis_connection
     original_get_conn_router = queue_admin.get_redis_connection
     original_get_conn_worker = worker_state.get_redis_connection
+    original_admin_token = queue_admin.settings.ADMIN_API_TOKEN
     try:
-        queue_admin.require_admin_api_token = lambda: None
+        queue_admin.settings.ADMIN_API_TOKEN = ""
         queue_module.get_redis_connection = lambda: fake
         queue_admin.get_redis_connection = lambda: fake
         worker_state.get_redis_connection = lambda: fake
@@ -72,7 +72,7 @@ def test_queue_admin_reports_worker_alive_from_recent_heartbeat() -> None:
         assert payload.worker_alive is True
     finally:
         queue_admin.queue_snapshot = original_queue_snapshot
-        queue_admin.require_admin_api_token = original_require_admin_api_token
+        queue_admin.settings.ADMIN_API_TOKEN = original_admin_token
         queue_module.get_redis_connection = original_get_conn_queue
         queue_admin.get_redis_connection = original_get_conn_router
         worker_state.get_redis_connection = original_get_conn_worker

@@ -287,8 +287,7 @@ Security:
 Admin security:
 - endpoint использует unified admin dependency;
 - если задан `ADMIN_API_TOKEN`, требуется header:
-  - `X-Admin-Api-Token: <token>`;
-- fallback: если `ADMIN_API_TOKEN` пуст, используется legacy `WEBHOOK_ADMIN_TOKEN`.
+  - `X-Admin-Api-Token: <token>`.
 
 ### `POST /bot/webhook/set`
 
@@ -311,7 +310,6 @@ Admin security:
 Security:
 - если задан `ADMIN_API_TOKEN`, endpoint требует header:
   - `X-Admin-Api-Token: <token>`;
-- fallback: если `ADMIN_API_TOKEN` пуст, используется legacy `WEBHOOK_ADMIN_TOKEN`;
 - при несовпадении — `401 Invalid admin api token`.
 
 ### `POST /bot/webhook/delete`
@@ -324,7 +322,6 @@ Query-параметры:
 Security:
 - если задан `ADMIN_API_TOKEN`, endpoint требует header:
   - `X-Admin-Api-Token: <token>`;
-- fallback: если `ADMIN_API_TOKEN` пуст, используется legacy `WEBHOOK_ADMIN_TOKEN`;
 - при несовпадении — `401 Invalid admin api token`.
 
 ## Admin API auth (Iteration 21)
@@ -339,5 +336,5 @@ Unified admin auth dependency применяется к admin/ops endpoint-ам:
 - `X-Admin-Api-Token: <token>`
 
 Поведение:
-- если `ADMIN_API_TOKEN` пуст, используется fallback к legacy `WEBHOOK_ADMIN_TOKEN`;
-- при несовпадении — `401 Invalid admin api token`.
+- при несовпадении — `401 Invalid admin api token`;
+- при многократных неверных попытках действует rate-limit (`429 Too many invalid admin token attempts`).

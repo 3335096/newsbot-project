@@ -70,9 +70,12 @@
    - доступ к admin endpoint-ам API защищен заголовком `X-Admin-Api-Token`
      (если задан `ADMIN_API_TOKEN`),
    - `401` при некорректном admin token.
-18. Bot ops webhook helpers:
+19. Bot ops webhook helpers:
    - наличие webhook-кнопок в `_ops_keyboard`,
    - корректная сборка admin-token заголовков в `_admin_api_headers`.
+20. Admin dependency hardening:
+   - rate-limit неверных попыток admin token (`429`),
+   - корректная работа helper при валидном/невалидном `ADMIN_API_TOKEN`.
 
 ## Быстрый запуск тестов
 
@@ -86,6 +89,7 @@ python3 -m pytest \
   tests/services/test_queue_dispatcher_requeue.py \
   tests/services/test_queue_reliability.py \
   tests/services/test_sources_router.py \
+  tests/api/test_admin_api_token_deps.py \
   tests/api/test_bot_webhook.py \
   tests/bot/test_runtime_webhook_sync.py \
   tests/bot/test_sources_handler_helpers.py \

@@ -51,7 +51,6 @@
   - `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
 - Admin token для webhook-операций:
   - `ADMIN_API_TOKEN=<strong-random-token>`
-  - (legacy fallback) `WEBHOOK_ADMIN_TOKEN=<strong-random-token>`
 - Полный URL webhook:
   - `TELEGRAM_WEBHOOK_URL=https://<your-domain>/bot/webhook`
 - Endpoint:
@@ -168,12 +167,24 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
   - `X-Admin-Api-Token: <token>`
 - Конфиг:
   - `ADMIN_API_TOKEN`
-  - fallback для обратной совместимости: `WEBHOOK_ADMIN_TOKEN`
 - Dependency применяется к endpoint-ам:
   - `/api/queue/*`
   - `/api/moderation/*`
   - `POST /api/llm/presets/{preset_name}`
   - `/bot/webhook/info|set|delete`
+
+### Admin auth strict mode + rate limit/audit (Iteration 22)
+
+- Удален legacy fallback `WEBHOOK_ADMIN_TOKEN`:
+  - для admin endpoint-ов используется только `ADMIN_API_TOKEN`.
+- Добавлен rate limit на неуспешные попытки admin auth:
+  - `ADMIN_API_RATE_LIMIT_COUNT` (по умолчанию `60`),
+  - `ADMIN_API_RATE_LIMIT_WINDOW_SECONDS` (по умолчанию `60`).
+- Добавлен audit logging неуспешных попыток admin auth:
+  - `ADMIN_API_AUDIT_LOG_ENABLED` (`true/false`).
+- Поведение dependency:
+  - при неверном токене: `401 Invalid admin api token`,
+  - при превышении лимита неверных попыток: `429 Too many invalid admin token attempts`.
 
 ### CI (Iteration 21)
 
