@@ -894,6 +894,41 @@
 
 ---
 
+## Итерация 23 — Idempotent webhook autosync
+
+### Что сделано
+- Улучшен `sync_webhook_mode()` в `bot/runtime.py`:
+  - добавлен pre-check текущего состояния webhook через `get_webhook_info()`,
+  - при `TELEGRAM_USE_WEBHOOK=true` и уже совпадающем `url`:
+    - если `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET=false`, set/delete не вызываются,
+    - возвращается `{"action":"skipped","reason":"already_set"}`.
+  - при `TELEGRAM_USE_WEBHOOK=false` и уже пустом `webhook_info.url`:
+    - delete не вызывается,
+    - возвращается `{"action":"skipped","reason":"already_deleted"}`.
+- Сохранена существующая логика:
+  - `drop_pending_on_set=true` по-прежнему принудительно выполняет delete+set.
+
+### Измененные файлы (ключевые)
+- `bot/runtime.py`
+- `tests/bot/test_runtime_webhook_sync.py`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен `tests/bot/test_runtime_webhook_sync.py`:
+  - skip при already set,
+  - skip при already deleted,
+  - existing set/delete/missing-url/autosync-disabled сценарии сохранены.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Идемпотентность auto-sync ориентирована только на `webhook_info.url`;
+  сравнение других параметров webhook (например, `allowed_updates`, `max_connections`) не выполняется.
+
+---
+
 ## Итерация 21 — Unified admin auth + lifespan + CI
 
 ### Что сделано

@@ -102,6 +102,14 @@ async def sync_webhook_mode() -> dict[str, str]:
                 "Webhook mode enabled but TELEGRAM_WEBHOOK_URL is empty; skipping webhook set"
             )
             return {"action": "skipped", "reason": "missing_webhook_url"}
+        current_info = await get_webhook_info()
+        current_url = (current_info.url or "").strip()
+        if (
+            current_url == url
+            and not settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET
+        ):
+            logger.info("Webhook already synchronized: {}", url)
+            return {"action": "skipped", "reason": "already_set", "url": url}
         secret = settings.TELEGRAM_WEBHOOK_SECRET.strip() or None
         if settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET:
             await delete_webhook(drop_pending_updates=True)
@@ -109,6 +117,10 @@ async def sync_webhook_mode() -> dict[str, str]:
         logger.info("Webhook synchronized: set {}", url)
         return {"action": "set", "url": url}
 
+    current_info = await get_webhook_info()
+    if not (current_info.url or "").strip():
+        logger.info("Webhook already absent; nothing to delete")
+        return {"action": "skipped", "reason": "already_deleted"}
     await delete_webhook(
         drop_pending_updates=settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE
     )

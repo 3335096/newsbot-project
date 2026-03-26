@@ -100,4 +100,6 @@
 - Итер. 19: безопасность и bot-ops интеграция webhook — для `info/set/delete` добавлена защита `X-Webhook-Admin-Token` (через `WEBHOOK_ADMIN_TOKEN`), а в разделе `Операции` появились кнопки `Webhook info/set/delete`.
 - Итер. 20: автоматическая синхронизация webhook-режима на старте API — добавлен `sync_webhook_mode()` (set/delete/skip по конфигу) с новыми флагами autosync/drop-pending, чтобы исключить ручной drift после перезапусков.
 - Итер. 21: production hardening — unified admin API token (`X-Admin-Api-Token`) для admin/ops endpoint-ов, миграция lifecycle на FastAPI lifespan, и базовый CI workflow в GitHub Actions (pytest + smoke).
+- Итер. 22: security hardening admin auth — удален legacy fallback `WEBHOOK_ADMIN_TOKEN`, введен strict `ADMIN_API_TOKEN` с базовым rate-limit для невалидных попыток (`429`) и audit logging.
+- Итер. 23: webhook autosync idempotency — `sync_webhook_mode()` теперь делает pre-check текущего `webhook_info.url` и пропускает лишние set/delete операции (`already_set` / `already_deleted`), снижая шум вызовов к Telegram API.
 - Итер. 22: security hardening admin API — удален legacy `WEBHOOK_ADMIN_TOKEN` fallback, включен строгий `ADMIN_API_TOKEN` для admin endpoints, добавлены базовый rate-limit и audit logging для невалидных admin token попыток.
