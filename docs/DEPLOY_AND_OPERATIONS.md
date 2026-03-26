@@ -40,6 +40,25 @@
   - ошибки LLM запросов (OpenRouter),
   - ошибки миграций,
   - ошибки обработки callback в боте.
+- Метрики Prometheus доступны по endpoint:
+  - `GET /metrics`
+  - формат: `text/plain; version=0.0.4` (prometheus-client)
+
+### Что мониторить в первую очередь
+
+- HTTP API:
+  - `newsbot_http_requests_total`
+  - `newsbot_http_request_duration_seconds`
+- Pipeline парсинга:
+  - `newsbot_parser_events_total` (`processed`, `created`, `drafts_created`, `blocked`, `flagged`)
+- LLM:
+  - `newsbot_llm_tasks_total` (по `task_type` и `status`)
+- Публикации:
+  - `newsbot_publication_events_total`
+  - `newsbot_publication_messages_sent_total`
+- Scheduler:
+  - `newsbot_scheduler_job_runs_total`
+  - `newsbot_scheduler_job_duration_seconds`
 
 ## 5. Управление доступом
 

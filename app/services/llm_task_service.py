@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.article_draft import ArticleDraft
 from app.db.models.llm_task import LLMTask
+from app.metrics import record_llm_task
 from app.services.llm_client import LLMClient
 from app.services.llm_preset_service import LLMPresetService
 from core.config import settings
@@ -68,6 +69,7 @@ class LLMTaskService:
         db.add(llm_task)
         db.commit()
         db.refresh(llm_task)
+        record_llm_task(task_type=task_type, status="running")
 
         try:
             response = await self.llm_client.generate_text(
@@ -81,12 +83,14 @@ class LLMTaskService:
             self._apply_result_to_draft(draft, task_type, generated)
             db.commit()
             db.refresh(llm_task)
+            record_llm_task(task_type=task_type, status="success")
             return LLMTaskResult(task=llm_task, applied_to_draft=True)
         except Exception as exc:
             llm_task.status = "error"
             llm_task.error = str(exc)
             db.commit()
             db.refresh(llm_task)
+            record_llm_task(task_type=task_type, status="error")
             return LLMTaskResult(task=llm_task, applied_to_draft=False)
 
     @staticmethod

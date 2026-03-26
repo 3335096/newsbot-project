@@ -16,6 +16,8 @@ from sqlalchemy.orm import Session
 
 from app.db.models.article_raw import ArticleRaw
 from app.db.models.source import Source
+from app.metrics import record_parser_stats
+from app.services.moderation_service import ModerationService
 
 try:
     from trafilatura import extract as trafilatura_extract
@@ -27,6 +29,7 @@ class ParserService:
     def __init__(self, timeout_seconds: int = 30, translation_service: Any | None = None):
         self.timeout_seconds = timeout_seconds
         self.translation_service = translation_service
+        self.force_translate_for_new = True
         if self.translation_service is None:
             try:
                 from app.services.translation_service import TranslationService
@@ -158,6 +161,8 @@ class ParserService:
         processed = 0
         created = 0
         drafts_created = 0
+        blocked = 0
+        flagged = 0
 
         for entry in entries:
             if not entry["url"]:
@@ -193,8 +198,22 @@ class ParserService:
             )
             if is_created:
                 created += 1
+
+            moderation = ModerationService(db).evaluate_article(
+                url=entry["url"],
+                title=title,
+                content=content,
+            )
+            if moderation.flagged:
+                flagged += 1
+            if moderation.blocked:
+                logger.info("Article blocked by moderation: url={}", entry["url"])
+                blocked += 1
+                continue
+
+            draft, draft_created = None, False
             if source.translate_enabled and self.translation_service is not None:
-                _, draft_created = await self.translation_service.get_or_create_draft_for_article(
+                draft, draft_created = await self.translation_service.get_or_create_draft_for_article(
                     db,
                     article,
                     target_language=source.default_target_language,
@@ -202,6 +221,20 @@ class ParserService:
                 if draft_created:
                     drafts_created += 1
 
+            if moderation.flags and draft is not None:
+                draft.flags = moderation.flags
+            if draft is not None:
+                if moderation.flagged and draft.status != "rejected":
+                    draft.status = "flagged"
+                db.commit()
+
+        record_parser_stats(
+            processed=processed,
+            created=created,
+            drafts_created=drafts_created,
+            blocked=blocked,
+            flagged=flagged,
+        )
         return {"processed": processed, "created": created, "drafts_created": drafts_created}
 
     @staticmethod

@@ -2,7 +2,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from aiogram import Bot
 from loguru import logger
+import time
+from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from app.metrics import record_scheduler_job
 from app.db.models.source import Source
 from app.db.session import SessionLocal
 from app.services.parser_service import ParserService
@@ -24,11 +28,14 @@ class Scheduler:
 
     def schedule_source_fetching(self, source_id: int, cron_schedule: str):
         async def fetch_source_job():
+            started = time.monotonic()
+            status = "success"
             db: Session = SessionLocal()
             try:
                 source = db.query(Source).filter(Source.id == source_id, Source.enabled.is_(True)).first()
                 if not source:
                     logger.warning("Source {} not found or disabled, skipping", source_id)
+                    status = "skipped"
                     return
 
                 stats = await self.parser_service.process_source(db, source)
@@ -40,8 +47,14 @@ class Scheduler:
                     stats["drafts_created"],
                 )
             except Exception as exc:
+                status = "error"
                 logger.exception("Scheduled parser job failed for source {}: {}", source_id, exc)
             finally:
+                record_scheduler_job(
+                    job_name="fetch_source",
+                    status=status,
+                    duration_seconds=time.monotonic() - started,
+                )
                 db.close()
 
         self.add_job(
@@ -59,9 +72,12 @@ class Scheduler:
         finally:
             db.close()
         self.schedule_publications_processing()
+        self.schedule_cleanup_old_data()
 
     def schedule_publications_processing(self):
         async def process_publications_job():
+            started = time.monotonic()
+            status = "success"
             db: Session = SessionLocal()
             bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
             publisher = PublisherService(bot)
@@ -70,8 +86,14 @@ class Scheduler:
                 if processed:
                     logger.info("Processed due publications: {}", processed)
             except Exception as exc:
+                status = "error"
                 logger.exception("Scheduled publication job failed: {}", exc)
             finally:
+                record_scheduler_job(
+                    job_name="process_publications",
+                    status=status,
+                    duration_seconds=time.monotonic() - started,
+                )
                 await bot.session.close()
                 db.close()
 
@@ -79,6 +101,44 @@ class Scheduler:
             process_publications_job,
             CronTrigger.from_crontab("*/1 * * * *"),
             id="process_publications",
+            replace_existing=True,
+            max_instances=1,
+        )
+
+    def schedule_cleanup_old_data(self):
+        async def cleanup_job():
+            started = time.monotonic()
+            status = "success"
+            db: Session = SessionLocal()
+            try:
+                # Keep data for last 90 days (MVP requirement).
+                db.execute(text("DELETE FROM llm_tasks WHERE created_at < now() - interval '90 days'"))
+                db.execute(
+                    text(
+                        "DELETE FROM publications "
+                        "WHERE COALESCE(published_at, scheduled_at) < now() - interval '90 days'"
+                    )
+                )
+                db.execute(text("DELETE FROM articles_draft WHERE created_at < now() - interval '90 days'"))
+                db.execute(text("DELETE FROM articles_raw WHERE fetched_at < now() - interval '90 days'"))
+                db.commit()
+                logger.info("Cleanup job finished")
+            except Exception as exc:
+                status = "error"
+                db.rollback()
+                logger.exception("Cleanup job failed: {}", exc)
+            finally:
+                record_scheduler_job(
+                    job_name="cleanup_old_data",
+                    status=status,
+                    duration_seconds=time.monotonic() - started,
+                )
+                db.close()
+
+        self.add_job(
+            cleanup_job,
+            CronTrigger.from_crontab("0 3 * * *"),
+            id="cleanup_old_data",
             replace_existing=True,
             max_instances=1,
         )
