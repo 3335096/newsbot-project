@@ -67,7 +67,7 @@
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–10:
+На данный момент завершены итерации 1–11:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -79,3 +79,4 @@
 - Итер. 8: асинхронные очереди Redis/RQ для LLM и публикаций, worker-процесс, retry/status API и перевод scheduler на enqueue-модель.
 - Итер. 9: управление источниками (`/api/sources` CRUD + валидация cron + `parse-now`), синхронизация scheduler-job по источникам и раздел `Источники` в Telegram-боте.
 - Итер. 10: надежность очередей (DLQ marker queue + manual requeue endpoint), queue observability (`/api/queue/stats`, метрики queue events/depth), readiness check Redis/worker (`/health/ready`) и worker heartbeat.
+- Итер. 11: расширение bot UX для источников — FSM-сценарии создания/редактирования/удаления источников прямо в Telegram (без обязательного перехода в API для базовых операций).

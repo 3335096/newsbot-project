@@ -12,6 +12,7 @@
 - `tests/services/test_queue_dispatcher_requeue.py`
 - `tests/services/test_queue_reliability.py`
 - `tests/services/test_sources_router.py`
+- `tests/bot/test_sources_handler_helpers.py`
 
 Покрытые сценарии:
 
@@ -38,6 +39,10 @@
    - requeue логика только для failed-like статусов (`failed/stopped/canceled`),
    - worker heartbeat в Redis и проверка `worker_alive`,
    - queue-admin stats (`redis_ok`, snapshots по очередям).
+12. Bot sources UX/helpers:
+   - формат карточки источника и значения по умолчанию,
+   - состав action-кнопок для источника (edit/parse/toggle/delete),
+   - наличие кнопки создания источника в общем меню источников.
 
 ## Быстрый запуск тестов
 
@@ -50,7 +55,8 @@ python3 -m pytest \
   tests/services/test_queue_dispatcher.py \
   tests/services/test_queue_dispatcher_requeue.py \
   tests/services/test_queue_reliability.py \
-  tests/services/test_sources_router.py -q
+  tests/services/test_sources_router.py \
+  tests/bot/test_sources_handler_helpers.py -q
 ```
 
 ## Smoke-check (рекомендуется после изменений инфраструктуры)
@@ -63,13 +69,10 @@ DATABASE_URL="sqlite:///./smoke.db" TELEGRAM_BOT_TOKEN="smoke-token" python3 -m 
 
 ## Что добавить дальше (рекомендуется)
 
-1. Тесты для `LLMPresetService`:
-   - bootstrap дефолтных пресетов,
-   - update/disable пресета.
-2. Тесты для `LLMTaskService`:
+1. Тесты для `LLMTaskService`:
    - summary/rewrite/title_hashtags с моком LLM.
-3. Интеграционный тест потока:
+2. Интеграционный тест потока:
    - `source -> articles_raw -> articles_draft -> llm_task`.
-4. Негативные сценарии API:
+3. Негативные сценарии API:
    - невалидные preset/task_type,
    - недоступные draft/preset.
