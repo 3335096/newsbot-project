@@ -14,6 +14,7 @@
 - `tests/services/test_sources_router.py`
 - `tests/bot/test_sources_handler_helpers.py`
 - `tests/bot/test_admin_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
 
 Покрытые сценарии:
 
@@ -48,6 +49,9 @@
    - структура админ-меню,
    - callback паттерны действий для preset-карточки
      (system/user/default_model/toggle).
+14. Bot ops UX/helpers:
+   - keyboard операционного раздела,
+   - форматирование queue stats/readiness payload в человекочитаемый текст.
 
 ## Быстрый запуск тестов
 
@@ -62,7 +66,8 @@ python3 -m pytest \
   tests/services/test_queue_reliability.py \
   tests/services/test_sources_router.py \
   tests/bot/test_sources_handler_helpers.py \
-  tests/bot/test_admin_handler_helpers.py -q
+  tests/bot/test_admin_handler_helpers.py \
+  tests/bot/test_ops_handler_helpers.py -q
 ```
 
 ## Smoke-check (рекомендуется после изменений инфраструктуры)

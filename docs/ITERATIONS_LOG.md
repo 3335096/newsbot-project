@@ -593,3 +593,53 @@
 ### Ограничения на текущем шаге
 - Для `default_target_language` в боте используется базовая длиновая проверка (минимум 2 символа); строгая валидация кодов языка остается на уровне API/бизнес-логики.
 - Поле `extraction_rules` по-прежнему редактируется через API (в bot UI пока не добавлено).
+
+---
+
+## Итерация 15 — Операционный раздел в Telegram-боте (queue/health)
+
+### Что сделано
+- Добавлен новый bot-handler `bot/handlers/ops.py` для операционного мониторинга:
+  - callback `show_ops` открывает меню операционных действий (только для admin),
+  - callback `ops_queue_stats` запрашивает `GET /api/queue/stats`,
+  - callback `ops_readiness` запрашивает `GET /health/ready`.
+- Реализовано форматирование статуса для удобного чтения в чате:
+  - `_format_queue_stats(...)`:
+    - Redis OK/ERROR,
+    - worker alive/down + last seen,
+    - сводка по очередям (`queued/started/failed/scheduled`),
+  - `_format_ready(...)`:
+    - readiness status,
+    - `redis_ok`,
+    - `worker_alive`,
+    - `worker_last_seen`.
+- Добавлена inline-клавиатура операционного раздела:
+  - кнопки `Обновить queue stats` и `Проверить readiness`.
+- Раздел интегрирован в бота:
+  - новая кнопка главного меню `Операционка`,
+  - подключение router `ops` в `bot/main.py`,
+  - экспорт `ops` в `bot/handlers/__init__.py`.
+
+### Измененные файлы (ключевые)
+- `bot/handlers/ops.py`
+- `bot/keyboards/main_menu.py`
+- `bot/main.py`
+- `bot/handlers/__init__.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен новый тестовый модуль:
+  - `tests/bot/test_ops_handler_helpers.py`
+  - проверяет:
+    - состав ops keyboard,
+    - формат текста queue stats,
+    - формат readiness summary.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Операционный раздел доступен только администраторам (`TELEGRAM_ADMIN_IDS`), но в MVP остается текстовым (без графиков/истории).
+- В боте пока не реализованы операторские действия над failed jobs (requeue из UI); для этого используется API `/api/queue/failed/{job_id}/requeue`.

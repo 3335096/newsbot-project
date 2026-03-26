@@ -83,3 +83,4 @@
 - Итер. 12: расширение админского UX для LLM-пресетов — inline FSM-редактирование `system_prompt` и `user_template` из карточки пресета (команды `/preset_system` и `/preset_user` сохранены как fallback).
 - Итер. 13: расширение админского UX для LLM-пресетов — управление `default_model` из карточки пресета (inline FSM + команда `/preset_model` как fallback).
 - Итер. 14: расширение bot UX для источников — редактирование через Telegram не только `name/cron`, но и `type`, `url`, `translate_enabled`, `default_target_language`.
+- Итер. 15: операционный раздел в Telegram-боте для админов — просмотр queue stats (`/api/queue/stats`) и readiness (`/health/ready`) с быстрым обновлением через inline-кнопки.
