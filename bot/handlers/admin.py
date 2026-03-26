@@ -1,10 +1,17 @@
 from aiogram import F, Router, types
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 import httpx
 
 from core.config import settings
 
 router = Router()
+
+
+class PresetEditState(StatesGroup):
+    waiting_for_system_prompt = State()
+    waiting_for_user_template = State()
 
 def _admin_keyboard() -> types.InlineKeyboardMarkup:
     return types.InlineKeyboardMarkup(
@@ -212,24 +219,28 @@ async def admin_toggle_preset(callback: types.CallbackQuery):
 @router.callback_query(
     F.data.startswith("admin_preset_edit_system_"), F.from_user.id.in_(settings.admin_ids)
 )
-async def admin_edit_system_hint(callback: types.CallbackQuery):
+async def admin_edit_system_start(callback: types.CallbackQuery, state: FSMContext):
     preset_name = callback.data.replace("admin_preset_edit_system_", "", 1)
+    await state.clear()
+    await state.update_data(preset_name=preset_name)
     await callback.message.answer(
-        f"Чтобы обновить system prompt, выполните:\n"
-        f"/preset_system {preset_name} <new prompt text>"
+        f"Введите новый system prompt для пресета '{preset_name}':"
     )
+    await state.set_state(PresetEditState.waiting_for_system_prompt)
     await callback.answer()
 
 
 @router.callback_query(
     F.data.startswith("admin_preset_edit_user_"), F.from_user.id.in_(settings.admin_ids)
 )
-async def admin_edit_user_hint(callback: types.CallbackQuery):
+async def admin_edit_user_start(callback: types.CallbackQuery, state: FSMContext):
     preset_name = callback.data.replace("admin_preset_edit_user_", "", 1)
+    await state.clear()
+    await state.update_data(preset_name=preset_name)
     await callback.message.answer(
-        f"Чтобы обновить user template, выполните:\n"
-        f"/preset_user {preset_name} <new template text>"
+        f"Введите новый user template для пресета '{preset_name}':"
     )
+    await state.set_state(PresetEditState.waiting_for_user_template)
     await callback.answer()
 
 
@@ -251,6 +262,33 @@ async def admin_update_system_prompt(message: types.Message):
         await message.answer(f"System prompt обновлен для пресета '{preset_name}'.")
 
 
+@router.message(PresetEditState.waiting_for_system_prompt, F.from_user.id.in_(settings.admin_ids))
+async def admin_update_system_prompt_fsm(message: types.Message, state: FSMContext):
+    new_prompt = (message.text or "").strip()
+    if not new_prompt:
+        await message.answer("Текст не может быть пустым. Введите новый system prompt:")
+        return
+    data = await state.get_data()
+    preset_name = data.get("preset_name")
+    if not preset_name:
+        await message.answer("Не удалось определить пресет. Повторите действие.")
+        await state.clear()
+        return
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
+            json={"system_prompt": new_prompt},
+        )
+        if response.status_code != 200:
+            await message.answer(f"Ошибка обновления пресета: {response.text}")
+            return
+    await message.answer(
+        f"System prompt обновлен для пресета '{preset_name}'.",
+        reply_markup=_preset_action_keyboard(preset_name),
+    )
+    await state.clear()
+
+
 @router.message(Command("preset_user"), F.from_user.id.in_(settings.admin_ids))
 async def admin_update_user_template(message: types.Message):
     parts = message.text.split(maxsplit=2) if message.text else []
@@ -267,6 +305,33 @@ async def admin_update_user_template(message: types.Message):
             await message.answer(f"Ошибка: {response.text}")
             return
         await message.answer(f"User template обновлен для пресета '{preset_name}'.")
+
+
+@router.message(PresetEditState.waiting_for_user_template, F.from_user.id.in_(settings.admin_ids))
+async def admin_update_user_template_fsm(message: types.Message, state: FSMContext):
+    new_template = (message.text or "").strip()
+    if not new_template:
+        await message.answer("Текст не может быть пустым. Введите новый user template:")
+        return
+    data = await state.get_data()
+    preset_name = data.get("preset_name")
+    if not preset_name:
+        await message.answer("Не удалось определить пресет. Повторите действие.")
+        await state.clear()
+        return
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
+            json={"user_prompt_template": new_template},
+        )
+        if response.status_code != 200:
+            await message.answer(f"Ошибка обновления пресета: {response.text}")
+            return
+    await message.answer(
+        f"User template обновлен для пресета '{preset_name}'.",
+        reply_markup=_preset_action_keyboard(preset_name),
+    )
+    await state.clear()
 
 
 @router.message(Command("admin"))
