@@ -1,29 +1,26 @@
 from __future__ import annotations
 
+import asyncio
 import os
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-token")
 
-import pytest
-
 from bot import runtime
 
 
-@pytest.mark.asyncio
-async def test_sync_webhook_mode_skips_when_autosync_disabled() -> None:
+def test_sync_webhook_mode_skips_when_autosync_disabled() -> None:
     original_autosync = runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP
     runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP = False
     try:
-        result = await runtime.sync_webhook_mode()
+        result = asyncio.run(runtime.sync_webhook_mode())
         assert result["action"] == "skipped"
         assert result["reason"] == "autosync_disabled"
     finally:
         runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP = original_autosync
 
 
-@pytest.mark.asyncio
-async def test_sync_webhook_mode_sets_webhook_when_enabled() -> None:
+def test_sync_webhook_mode_sets_webhook_when_enabled() -> None:
     original_autosync = runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP
     original_use_webhook = runtime.settings.TELEGRAM_USE_WEBHOOK
     original_url = runtime.settings.TELEGRAM_WEBHOOK_URL
@@ -52,7 +49,7 @@ async def test_sync_webhook_mode_sets_webhook_when_enabled() -> None:
         runtime.delete_webhook = _fake_delete_webhook
         runtime.set_webhook = _fake_set_webhook
 
-        result = await runtime.sync_webhook_mode()
+        result = asyncio.run(runtime.sync_webhook_mode())
         assert result["action"] == "set"
         assert result["url"] == "https://example.com/bot/webhook"
         assert calls["delete_drop"] is True
@@ -68,8 +65,7 @@ async def test_sync_webhook_mode_sets_webhook_when_enabled() -> None:
         runtime.delete_webhook = original_delete_webhook
 
 
-@pytest.mark.asyncio
-async def test_sync_webhook_mode_deletes_when_polling_enabled() -> None:
+def test_sync_webhook_mode_deletes_when_polling_enabled() -> None:
     original_autosync = runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP
     original_use_webhook = runtime.settings.TELEGRAM_USE_WEBHOOK
     original_drop_on_disable = runtime.settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE
@@ -86,7 +82,7 @@ async def test_sync_webhook_mode_deletes_when_polling_enabled() -> None:
             return True
 
         runtime.delete_webhook = _fake_delete_webhook
-        result = await runtime.sync_webhook_mode()
+        result = asyncio.run(runtime.sync_webhook_mode())
         assert result["action"] == "deleted"
         assert calls["delete_drop"] is True
     finally:
@@ -96,8 +92,7 @@ async def test_sync_webhook_mode_deletes_when_polling_enabled() -> None:
         runtime.delete_webhook = original_delete_webhook
 
 
-@pytest.mark.asyncio
-async def test_sync_webhook_mode_skips_when_url_missing() -> None:
+def test_sync_webhook_mode_skips_when_url_missing() -> None:
     original_autosync = runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP
     original_use_webhook = runtime.settings.TELEGRAM_USE_WEBHOOK
     original_url = runtime.settings.TELEGRAM_WEBHOOK_URL
@@ -105,7 +100,7 @@ async def test_sync_webhook_mode_skips_when_url_missing() -> None:
         runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP = True
         runtime.settings.TELEGRAM_USE_WEBHOOK = True
         runtime.settings.TELEGRAM_WEBHOOK_URL = ""
-        result = await runtime.sync_webhook_mode()
+        result = asyncio.run(runtime.sync_webhook_mode())
         assert result["action"] == "skipped"
         assert result["reason"] == "missing_webhook_url"
     finally:
