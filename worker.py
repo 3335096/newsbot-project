@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 
-from rq import Connection, Worker
+from rq import Worker
 
 from app.queue import get_redis_connection
 from app.services.worker_state import heartbeat_worker
@@ -25,13 +25,12 @@ def main() -> None:
 
     heartbeat_thread = threading.Thread(target=_heartbeat_loop, daemon=True)
     heartbeat_thread.start()
-    with Connection(connection):
-        worker = Worker(queue_names)
-        try:
-            worker.work()
-        finally:
-            stop_event.set()
-            heartbeat_thread.join(timeout=2)
+    worker = Worker(queue_names, connection=connection)
+    try:
+        worker.work()
+    finally:
+        stop_event.set()
+        heartbeat_thread.join(timeout=2)
 
 
 if __name__ == "__main__":
