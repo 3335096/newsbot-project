@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     TELEGRAM_WEBHOOK_SECRET: str = ""
     TELEGRAM_USE_WEBHOOK: bool = False
     TELEGRAM_WEBHOOK_URL: str = ""
+    WEBHOOK_ADMIN_TOKEN: str = ""
 
     OPENROUTER_API_KEY: str = ""
     LLM_DEFAULT_MODEL_TRANSLATE: str = "openai/gpt-4o-mini"

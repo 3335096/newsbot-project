@@ -282,6 +282,48 @@ Security:
 
 ### `GET /bot/webhook/info`
 
+Возвращает текущее состояние webhook, полученное из Telegram Bot API.
+
+Если задан `WEBHOOK_ADMIN_TOKEN`, endpoint требует header:
+- `X-Webhook-Admin-Token: <token>`
+
+### `POST /bot/webhook/set`
+
+Устанавливает webhook URL в Telegram Bot API.
+
+Тело запроса:
+
+```json
+{
+  "url": "https://example.com/bot/webhook",
+  "secret_token": "optional-secret",
+  "drop_pending_updates": false
+}
+```
+
+- `url` можно не передавать, если заполнен `TELEGRAM_WEBHOOK_URL`.
+- `secret_token` можно не передавать, тогда используется `TELEGRAM_WEBHOOK_SECRET`.
+- при `drop_pending_updates=true` перед установкой webhook выполняется `deleteWebhook(drop_pending_updates=true)`.
+
+Security:
+- если задан `WEBHOOK_ADMIN_TOKEN`, endpoint требует header:
+  - `X-Webhook-Admin-Token: <token>`
+- при несовпадении — `401 Invalid webhook admin token`.
+
+### `POST /bot/webhook/delete`
+
+Удаляет webhook.
+
+Query-параметры:
+- `drop_pending_updates` (`false` по умолчанию)
+
+Security:
+- если задан `WEBHOOK_ADMIN_TOKEN`, endpoint требует header:
+  - `X-Webhook-Admin-Token: <token>`
+- при несовпадении — `401 Invalid webhook admin token`.
+
+### `GET /bot/webhook/info`
+
 Возвращает текущую информацию webhook из Telegram Bot API:
 - `url`
 - `has_custom_certificate`

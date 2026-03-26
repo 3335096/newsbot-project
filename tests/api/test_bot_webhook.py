@@ -5,17 +5,18 @@ import os
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-token")
 os.environ.setdefault("TELEGRAM_WEBHOOK_SECRET", "secret-token")
+os.environ.setdefault("WEBHOOK_ADMIN_TOKEN", "ops-token")
 
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.api.routers import bot_webhook as bot_webhook_router
 from bot.runtime import WebhookInfo
-from bot.runtime import WebhookInfo
 
 
 bot_webhook_router.settings.TELEGRAM_WEBHOOK_SECRET = "secret-token"
 bot_webhook_router.settings.TELEGRAM_WEBHOOK_URL = "https://example.com/bot/webhook"
+bot_webhook_router.settings.WEBHOOK_ADMIN_TOKEN = "ops-token"
 
 
 def _minimal_update_payload() -> dict:
@@ -90,7 +91,10 @@ def test_webhook_info_endpoint_returns_runtime_info() -> None:
             )
 
         bot_webhook_router.get_webhook_info = _fake_get_webhook_info
-        response = client.get("/bot/webhook/info")
+        response = client.get(
+            "/bot/webhook/info",
+            headers={"X-Webhook-Admin-Token": "ops-token"},
+        )
         assert response.status_code == 200
         payload = response.json()
         assert payload["url"] == "https://example.com/bot/webhook"
@@ -124,6 +128,7 @@ def test_webhook_set_uses_payload_values() -> None:
                 "secret_token": "my-secret",
                 "drop_pending_updates": True,
             },
+            headers={"X-Webhook-Admin-Token": "ops-token"},
         )
         assert response.status_code == 200
         payload = response.json()
@@ -149,7 +154,11 @@ def test_webhook_set_uses_config_url_when_payload_missing() -> None:
             return True
 
         bot_webhook_router.set_webhook = _fake_set_webhook
-        response = client.post("/bot/webhook/set", json={})
+        response = client.post(
+            "/bot/webhook/set",
+            json={},
+            headers={"X-Webhook-Admin-Token": "ops-token"},
+        )
         assert response.status_code == 200
         assert calls["url"] == "https://example.com/bot/webhook"
         assert calls["secret_token"] == "secret-token"
@@ -162,7 +171,11 @@ def test_webhook_set_returns_400_when_url_missing() -> None:
     original_url = bot_webhook_router.settings.TELEGRAM_WEBHOOK_URL
     bot_webhook_router.settings.TELEGRAM_WEBHOOK_URL = ""
     try:
-        response = client.post("/bot/webhook/set", json={})
+        response = client.post(
+            "/bot/webhook/set",
+            json={},
+            headers={"X-Webhook-Admin-Token": "ops-token"},
+        )
         assert response.status_code == 400
         assert response.json()["detail"] == "Webhook URL is required"
     finally:
@@ -179,7 +192,10 @@ def test_webhook_delete_endpoint_calls_runtime() -> None:
             return True
 
         bot_webhook_router.delete_webhook = _fake_delete_webhook
-        response = client.post("/bot/webhook/delete?drop_pending_updates=true")
+        response = client.post(
+            "/bot/webhook/delete?drop_pending_updates=true",
+            headers={"X-Webhook-Admin-Token": "ops-token"},
+        )
         assert response.status_code == 200
         payload = response.json()
         assert payload["status"] == "ok"
@@ -187,3 +203,13 @@ def test_webhook_delete_endpoint_calls_runtime() -> None:
         assert calls["drop_pending_updates"] is True
     finally:
         bot_webhook_router.delete_webhook = original_delete_webhook
+
+
+def test_webhook_admin_endpoints_reject_invalid_token() -> None:
+    client = TestClient(app)
+    response = client.get(
+        "/bot/webhook/info",
+        headers={"X-Webhook-Admin-Token": "wrong-token"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid webhook admin token"

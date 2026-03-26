@@ -61,6 +61,13 @@
    - проверка `X-Telegram-Bot-Api-Secret-Token`,
    - прием валидного update и передача в `Dispatcher.feed_update`.
 17. Webhook operations API:
+   - доступ к `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`
+     защищен заголовком `X-Webhook-Admin-Token` (если задан `WEBHOOK_ADMIN_TOKEN`),
+   - `401` при некорректном admin token.
+18. Bot ops webhook helpers:
+   - наличие webhook-кнопок в `_ops_keyboard`,
+   - корректная сборка admin-token заголовков в `_webhook_headers`.
+17. Webhook operations API:
    - `GET /bot/webhook/info`,
    - `POST /bot/webhook/set` (payload/config fallback, optional drop pending updates),
    - `POST /bot/webhook/delete`.

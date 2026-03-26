@@ -49,11 +49,16 @@
   - `TELEGRAM_USE_WEBHOOK=true`
 - Секрет заголовка:
   - `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
+- Admin token для webhook-операций:
+  - `WEBHOOK_ADMIN_TOKEN=<strong-random-token>`
 - Полный URL webhook:
   - `TELEGRAM_WEBHOOK_URL=https://<your-domain>/bot/webhook`
 - Endpoint:
   - `POST /bot/webhook`
   - проверяется заголовок `X-Telegram-Bot-Api-Secret-Token` (если секрет задан)
+  - `GET /bot/webhook/info` (требует `X-Webhook-Admin-Token`, если `WEBHOOK_ADMIN_TOKEN` задан)
+  - `POST /bot/webhook/set` (требует `X-Webhook-Admin-Token`, если `WEBHOOK_ADMIN_TOKEN` задан)
+  - `POST /bot/webhook/delete` (требует `X-Webhook-Admin-Token`, если `WEBHOOK_ADMIN_TOKEN` задан)
 - В polling-режиме (`TELEGRAM_USE_WEBHOOK=false`) бот продолжает работать через `python -m bot.main`.
 
 Webhook operations API:

@@ -181,3 +181,26 @@ Flow:
 Используемые API:
 - `GET /api/queue/failed`
 - `POST /api/queue/failed/{job_id}/requeue`
+
+## 12. Webhook operations из раздела "Операции" (Iteration 19)
+
+В разделе `Операции` для администраторов добавлены кнопки:
+- `Webhook info`
+- `Webhook set`
+- `Webhook delete`
+
+Действия:
+- `Webhook info`:
+  - вызывает `GET /bot/webhook/info`,
+  - показывает текущий `url`, `pending_update_count` и `last_error`.
+- `Webhook set`:
+  - вызывает `POST /bot/webhook/set` (использует `TELEGRAM_WEBHOOK_URL`/`TELEGRAM_WEBHOOK_SECRET`),
+  - возвращает `applied` и URL.
+- `Webhook delete`:
+  - вызывает `POST /bot/webhook/delete`,
+  - возвращает результат `applied`.
+
+Безопасность:
+- если задан `WEBHOOK_ADMIN_TOKEN`, bot отправляет в webhook management API заголовок:
+  - `X-Webhook-Admin-Token: <token>`.
+- при неверном токене API возвращает `401`.

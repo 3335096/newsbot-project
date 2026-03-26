@@ -72,6 +72,22 @@ def _ops_keyboard() -> types.InlineKeyboardMarkup:
                     callback_data="ops_failed_list",
                 )
             ],
+            [
+                types.InlineKeyboardButton(
+                    text="Webhook info",
+                    callback_data="ops_webhook_info",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="Webhook set",
+                    callback_data="ops_webhook_set",
+                ),
+                types.InlineKeyboardButton(
+                    text="Webhook delete",
+                    callback_data="ops_webhook_delete",
+                ),
+            ],
         ]
     )
 
@@ -209,6 +225,86 @@ async def ops_requeue_failed(callback: CallbackQuery):
             return
     await callback.message.answer(
         f"Job {job_id} успешно поставлен на повторную обработку.",
+        reply_markup=_ops_keyboard(),
+    )
+    await callback.answer()
+
+
+def _webhook_headers() -> dict[str, str]:
+    token = settings.WEBHOOK_ADMIN_TOKEN.strip()
+    if not token:
+        return {}
+    return {"X-Webhook-Admin-Token": token}
+
+
+@router.callback_query(F.data == "ops_webhook_info")
+async def ops_webhook_info(callback: CallbackQuery):
+    if not _is_admin(callback.from_user.id):
+        await callback.message.answer("Раздел доступен только администраторам.")
+        await callback.answer()
+        return
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{settings.APP_BASE_URL}/bot/webhook/info",
+            headers=_webhook_headers(),
+        )
+        if resp.status_code != 200:
+            await callback.message.answer(f"Ошибка webhook info: {resp.text}")
+            await callback.answer()
+            return
+        payload = resp.json()
+    await callback.message.answer(
+        "Webhook:\n"
+        f"url={payload.get('url') or '-'}\n"
+        f"pending={payload.get('pending_update_count', 0)}\n"
+        f"last_error={payload.get('last_error_message') or '-'}",
+        reply_markup=_ops_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "ops_webhook_set")
+async def ops_webhook_set(callback: CallbackQuery):
+    if not _is_admin(callback.from_user.id):
+        await callback.message.answer("Раздел доступен только администраторам.")
+        await callback.answer()
+        return
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{settings.APP_BASE_URL}/bot/webhook/set",
+            json={},
+            headers=_webhook_headers(),
+        )
+        if resp.status_code != 200:
+            await callback.message.answer(f"Ошибка webhook set: {resp.text}")
+            await callback.answer()
+            return
+        payload = resp.json()
+    await callback.message.answer(
+        f"Webhook set: applied={payload.get('applied')} url={payload.get('url') or '-'}",
+        reply_markup=_ops_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "ops_webhook_delete")
+async def ops_webhook_delete(callback: CallbackQuery):
+    if not _is_admin(callback.from_user.id):
+        await callback.message.answer("Раздел доступен только администраторам.")
+        await callback.answer()
+        return
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{settings.APP_BASE_URL}/bot/webhook/delete",
+            headers=_webhook_headers(),
+        )
+        if resp.status_code != 200:
+            await callback.message.answer(f"Ошибка webhook delete: {resp.text}")
+            await callback.answer()
+            return
+        payload = resp.json()
+    await callback.message.answer(
+        f"Webhook delete: applied={payload.get('applied')}",
         reply_markup=_ops_keyboard(),
     )
     await callback.answer()

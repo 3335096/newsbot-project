@@ -16,6 +16,9 @@ def test_ops_keyboard_contains_actions() -> None:
     assert "ops_queue_stats" in callback_data
     assert "ops_readiness" in callback_data
     assert "ops_failed_list" in callback_data
+    assert "ops_webhook_info" in callback_data
+    assert "ops_webhook_set" in callback_data
+    assert "ops_webhook_delete" in callback_data
 
 
 def test_format_queue_stats_contains_core_fields() -> None:
@@ -53,3 +56,23 @@ def test_failed_jobs_keyboard_contains_requeue_buttons() -> None:
     assert "ops_requeue_failed:job-1" in callback_data
     assert "ops_requeue_failed:job-2" in callback_data
     assert "show_ops" in callback_data
+
+
+def test_webhook_headers_empty_without_token() -> None:
+    original = ops.settings.WEBHOOK_ADMIN_TOKEN
+    ops.settings.WEBHOOK_ADMIN_TOKEN = ""
+    try:
+        headers = ops._webhook_headers()
+        assert headers == {}
+    finally:
+        ops.settings.WEBHOOK_ADMIN_TOKEN = original
+
+
+def test_webhook_headers_includes_admin_token() -> None:
+    original = ops.settings.WEBHOOK_ADMIN_TOKEN
+    ops.settings.WEBHOOK_ADMIN_TOKEN = "ops-token"
+    try:
+        headers = ops._webhook_headers()
+        assert headers == {"X-Webhook-Admin-Token": "ops-token"}
+    finally:
+        ops.settings.WEBHOOK_ADMIN_TOKEN = original

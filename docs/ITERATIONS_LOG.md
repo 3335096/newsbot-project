@@ -798,3 +798,51 @@
 ### Ограничения на текущем шаге
 - Webhook management endpoints не ограничены отдельной admin-аутентификацией на уровне API (в MVP предполагается эксплуатационный perimeter).
 - `TELEGRAM_USE_WEBHOOK` управляет запуском polling-процесса, но разделение compose-профилей остается задачей deployment-конфигурации.
+
+---
+
+## Итерация 19 — Webhook security hardening + Ops integration
+
+### Что сделано
+- Закрыт риск незащищенного webhook-операционного API:
+  - для `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`
+    добавлена проверка заголовка `X-Webhook-Admin-Token`,
+  - токен берется из `WEBHOOK_ADMIN_TOKEN`,
+  - при несовпадении возвращается `401 Invalid webhook admin token`.
+- Добавлена конфигурация:
+  - `WEBHOOK_ADMIN_TOKEN` в `core/config.py` и `.env.example`.
+- Расширен ops-раздел Telegram-бота для работы с webhook:
+  - кнопка `Webhook info` (вызов `/bot/webhook/info`),
+  - кнопка `Webhook set` (вызов `/bot/webhook/set` с fallback на env),
+  - кнопка `Webhook delete` (вызов `/bot/webhook/delete`),
+  - в запросы автоматически добавляется `X-Webhook-Admin-Token` при заданном `WEBHOOK_ADMIN_TOKEN`.
+- Сохранена совместимость ingress endpoint:
+  - `POST /bot/webhook` продолжает валидировать `X-Telegram-Bot-Api-Secret-Token`
+    и не требует `WEBHOOK_ADMIN_TOKEN`.
+
+### Измененные файлы (ключевые)
+- `core/config.py`
+- `app/api/routers/bot_webhook.py`
+- `bot/handlers/ops.py`
+- `.env.example`
+- `tests/api/test_bot_webhook.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен `tests/api/test_bot_webhook.py`:
+  - проверка `401` для webhook management endpoint при неверном `X-Webhook-Admin-Token`,
+  - существующие позитивные кейсы для info/set/delete обновлены с учетом admin token.
+- Расширен `tests/bot/test_ops_handler_helpers.py`:
+  - проверка новых webhook-кнопок в ops keyboard,
+  - проверка helper `_webhook_headers()` (пустой/заполненный token).
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- В MVP webhook management защищен единым shared-токеном (`WEBHOOK_ADMIN_TOKEN`) без ротации/TTL и без отдельной ролевой матрицы API.
+- В ops-интерфейсе Telegram webhook set использует конфигурационный URL (`TELEGRAM_WEBHOOK_URL`); интерактивный ввод URL в боте пока не реализован.

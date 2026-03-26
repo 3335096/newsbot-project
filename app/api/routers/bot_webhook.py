@@ -28,6 +28,14 @@ class WebhookOperationOut(BaseModel):
     url: str | None = None
 
 
+def _require_webhook_admin_token(x_webhook_admin_token: str | None) -> None:
+    expected = settings.WEBHOOK_ADMIN_TOKEN.strip()
+    if not expected:
+        return
+    if x_webhook_admin_token != expected:
+        raise HTTPException(status_code=401, detail="Invalid webhook admin token")
+
+
 @router.post("/webhook")
 async def bot_webhook(
     request: Request,
@@ -47,13 +55,18 @@ async def bot_webhook(
 
 
 @router.get("/webhook/info")
-async def bot_webhook_info():
+async def bot_webhook_info(x_webhook_admin_token: str | None = Header(default=None)):
+    _require_webhook_admin_token(x_webhook_admin_token)
     info = await get_webhook_info()
     return info.model_dump()
 
 
 @router.post("/webhook/set", response_model=WebhookOperationOut)
-async def bot_webhook_set(payload: WebhookSetPayload):
+async def bot_webhook_set(
+    payload: WebhookSetPayload,
+    x_webhook_admin_token: str | None = Header(default=None),
+):
+    _require_webhook_admin_token(x_webhook_admin_token)
     url = (payload.url or settings.TELEGRAM_WEBHOOK_URL).strip()
     if not url:
         raise HTTPException(status_code=400, detail="Webhook URL is required")
@@ -70,6 +83,10 @@ async def bot_webhook_set(payload: WebhookSetPayload):
 
 
 @router.post("/webhook/delete", response_model=WebhookOperationOut)
-async def bot_webhook_delete(drop_pending_updates: bool = False):
+async def bot_webhook_delete(
+    drop_pending_updates: bool = False,
+    x_webhook_admin_token: str | None = Header(default=None),
+):
+    _require_webhook_admin_token(x_webhook_admin_token)
     applied = await delete_webhook(drop_pending_updates=drop_pending_updates)
     return WebhookOperationOut(status="ok", applied=bool(applied), url=None)
