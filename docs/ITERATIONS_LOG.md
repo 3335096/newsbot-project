@@ -517,3 +517,544 @@
 ### Ограничения на текущем шаге
 - FSM-редактирование пресетов реализовано только для текстовых полей (`system_prompt`, `user_prompt_template`).
 - Редактирование `default_model` через bot UI пока не добавлено (доступно через API).
+
+---
+
+## Итерация 13 — Управление `default_model` пресетов из admin-бота
+
+### Что сделано
+- Расширен bot-admin UX для пресетов:
+  - в action-кнопки пресета добавлена кнопка `Изменить default model`.
+- Добавлен FSM-сценарий редактирования `default_model`:
+  - callback `admin_preset_edit_model_<preset>` переводит в состояние ожидания модели,
+  - сообщение с новым значением отправляется в API:
+    - `POST /api/llm/presets/{preset_name}` с полем `default_model`,
+  - значение `-` поддерживается как сброс к `None` (service default model).
+- Добавлен fallback через slash-команду:
+  - `/preset_model <preset_name> <default_model|->`.
+- Обновлены сообщения подтверждения:
+  - после update бот показывает актуальный результат и возвращает action-кнопки пресета.
+
+### Измененные файлы (ключевые)
+- `bot/handlers/admin.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен тест `tests/bot/test_admin_handler_helpers.py`:
+  - проверка наличия callback `admin_preset_edit_model_<preset>` в keyboard пресета.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Управление `default_model` выполняется как свободный текст (валидация формата/доступности модели остается на API/LLM-провайдере).
+- UI выбора модели из списка доступных провайдеров пока не реализован.
+
+---
+
+## Итерация 14 — Расширенное редактирование источников в Telegram-боте
+
+### Что сделано
+- Расширен раздел `Источники` в bot UI beyond `name/cron`:
+  - добавлены новые action-кнопки в карточке источника:
+    - `Изменить тип`,
+    - `Изменить URL`,
+    - `Переключить перевод`,
+    - `Изменить язык по умолчанию`.
+- Реализованы новые edit-flow в `bot/handlers/sources.py`:
+  - FSM-поток изменения `type` (`rss|site`),
+  - FSM-поток изменения `url` (базовая валидация `http(s)`),
+  - toggle `translate_enabled` через чтение текущего source и `PUT`,
+  - FSM-поток изменения `default_target_language`.
+- Сохранена существующая логика Iteration 11:
+  - создание источника через FSM,
+  - редактирование `name` и `schedule_cron`,
+  - parse-now / enable-toggle / delete.
+
+### Измененные файлы (ключевые)
+- `bot/handlers/sources.py`
+- `tests/bot/test_sources_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен тест `tests/bot/test_sources_handler_helpers.py`:
+  - проверка новых callback-кнопок source-card:
+    - `source_edit_type_<id>`,
+    - `source_edit_url_<id>`,
+    - `source_edit_translate_<id>`,
+    - `source_edit_lang_<id>`.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Для `default_target_language` в боте используется базовая длиновая проверка (минимум 2 символа); строгая валидация кодов языка остается на уровне API/бизнес-логики.
+- Поле `extraction_rules` по-прежнему редактируется через API (в bot UI пока не добавлено).
+
+---
+
+## Итерация 15 — Операционный раздел в Telegram-боте (queue/health)
+
+### Что сделано
+- Добавлен новый bot-handler `bot/handlers/ops.py` для операционного мониторинга:
+  - callback `show_ops` открывает меню операционных действий (только для admin),
+  - callback `ops_queue_stats` запрашивает `GET /api/queue/stats`,
+  - callback `ops_readiness` запрашивает `GET /health/ready`.
+- Реализовано форматирование статуса для удобного чтения в чате:
+  - `_format_queue_stats(...)`:
+    - Redis OK/ERROR,
+    - worker alive/down + last seen,
+    - сводка по очередям (`queued/started/failed/scheduled`),
+  - `_format_ready(...)`:
+    - readiness status,
+    - `redis_ok`,
+    - `worker_alive`,
+    - `worker_last_seen`.
+- Добавлена inline-клавиатура операционного раздела:
+  - кнопки `Обновить queue stats` и `Проверить readiness`.
+- Раздел интегрирован в бота:
+  - новая кнопка главного меню `Операционка`,
+  - подключение router `ops` в `bot/main.py`,
+  - экспорт `ops` в `bot/handlers/__init__.py`.
+
+### Измененные файлы (ключевые)
+- `bot/handlers/ops.py`
+- `bot/keyboards/main_menu.py`
+- `bot/main.py`
+- `bot/handlers/__init__.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен новый тестовый модуль:
+  - `tests/bot/test_ops_handler_helpers.py`
+  - проверяет:
+    - состав ops keyboard,
+    - формат текста queue stats,
+    - формат readiness summary.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Операционный раздел доступен только администраторам (`TELEGRAM_ADMIN_IDS`), но в MVP остается текстовым (без графиков/истории).
+- В боте пока не реализованы операторские действия над failed jobs (requeue из UI); для этого используется API `/api/queue/failed/{job_id}/requeue`.
+
+---
+
+## Итерация 16 — Bot settings + failed requeue из UI
+
+### Что сделано
+- Закрыт "мертвый" пункт главного меню `Настройки`:
+  - добавлен новый handler `bot/handlers/settings.py`,
+  - реализован callback `show_settings`.
+- Добавлен API для пользовательских настроек:
+  - `GET /api/users/{telegram_user_id}/settings`,
+  - `POST /api/users/{telegram_user_id}/settings`,
+  - lazy upsert пользователя в таблицу `users` при первом обращении.
+- Реализованы настройки редактора в боте:
+  - `default_target_language` (FSM-ввод),
+  - `enable_images` (toggle),
+  - хранение в `users.settings`.
+- Расширен ops-раздел для операторских действий:
+  - добавлена кнопка `Показать failed jobs`,
+  - добавлен endpoint `GET /api/queue/failed` (список marker jobs),
+  - в боте отображаются кнопки `Requeue <job_id>` для ручного повторного запуска,
+  - сохранен fallback `/requeue_failed <job_id>`.
+- Обновлена главная клавиатура:
+  - удален дублирующий/нецелевой пункт `Правила модерации` из main menu (админ-функция остается через `/admin`),
+  - оставлены `Черновики / Источники / Операции / Настройки`.
+
+### Измененные файлы (ключевые)
+- `app/api/routers/users.py`
+- `app/api/routers/queue_admin.py`
+- `app/api/routers/__init__.py`
+- `app/main.py`
+- `bot/handlers/settings.py`
+- `bot/handlers/ops.py`
+- `bot/handlers/__init__.py`
+- `bot/main.py`
+- `bot/keyboards/main_menu.py`
+- `tests/bot/test_settings_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `docs/BOT_GUIDE.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлены/расширены bot helper tests:
+  - `tests/bot/test_settings_handler_helpers.py`:
+    - keyboard настроек,
+    - текст отображения настроек.
+  - `tests/bot/test_ops_handler_helpers.py`:
+    - наличие `ops_failed_list`,
+    - keyboard failed requeue действий.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- В settings пока нет UI для выбора пресетов/моделей по умолчанию на пользователя (доступно к расширению).
+- `GET /api/queue/failed` возвращает marker job IDs без enriched metadata (время/ошибка), это operator-MVP.
+
+---
+
+## Итерация 17 — Production webhook mode для Telegram-бота
+
+### Что сделано
+- Реализован рабочий webhook endpoint вместо placeholder:
+  - `POST /bot/webhook` теперь:
+    - принимает Telegram update payload,
+    - валидирует его через `aiogram.types.Update`,
+    - передает update в `Dispatcher.feed_update(...)`.
+- Добавлена проверка секрета webhook:
+  - поддержка заголовка `X-Telegram-Bot-Api-Secret-Token`,
+  - при заданном `TELEGRAM_WEBHOOK_SECRET` некорректный secret возвращает `401`.
+- Унифицирован runtime для polling и webhook:
+  - новый общий модуль `bot/runtime.py` с singleton `Bot`/`Dispatcher`,
+  - общий helper регистрации bot commands (`ensure_bot_commands`),
+  - корректное закрытие bot session (`close_bot_session`) на shutdown.
+- Обновлен запуск бота в polling-режиме:
+  - `bot/main.py` теперь использует общий runtime и общий set commands.
+- API startup/shutdown синхронизирован с runtime бота:
+  - на startup API выставляет bot commands,
+  - на shutdown закрывает shared bot session.
+- Добавлены новые конфигурационные параметры:
+  - `TELEGRAM_WEBHOOK_SECRET`,
+  - `TELEGRAM_USE_WEBHOOK` (флаг режима в окружении для эксплуатации).
+
+### Измененные файлы (ключевые)
+- `app/api/routers/bot_webhook.py`
+- `app/main.py`
+- `bot/runtime.py`
+- `bot/main.py`
+- `core/config.py`
+- `.env.example`
+- `tests/api/test_bot_webhook.py`
+- `docs/API_REFERENCE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен новый API-тест:
+  - `tests/api/test_bot_webhook.py`
+  - проверяет:
+    - `401` при неверном webhook secret,
+    - успешную обработку update и вызов `Dispatcher.feed_update` при корректном secret.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- В текущем webhook flow не реализован endpoint для автоматического `setWebhook`/`deleteWebhook` управления через API (операция выполняется через Bot API/операционные команды).
+- Режим `TELEGRAM_USE_WEBHOOK` добавлен как конфигурационный флаг для эксплуатации, переключение процесса polling/webhook остается на уровне deployment-профиля.
+
+---
+
+## Итерация 18 — Webhook operations API + mode-aware startup
+
+### Что сделано
+- Закрыт эксплуатационный зазор webhook-режима:
+  - добавлены endpoints управления webhook в API:
+    - `GET /bot/webhook/info`,
+    - `POST /bot/webhook/set`,
+    - `POST /bot/webhook/delete`.
+- Реализована обвязка runtime для webhook-операций:
+  - `bot/runtime.py` расширен методами:
+    - `get_webhook_info()`,
+    - `set_webhook(url, secret_token)`,
+    - `delete_webhook(drop_pending_updates)`.
+- Добавлена конфигурация для production webhook:
+  - `TELEGRAM_WEBHOOK_URL` в `core/config.py` и `.env.example`.
+- Сделан mode-aware запуск polling-процесса:
+  - `bot/main.py` при `TELEGRAM_USE_WEBHOOK=true` не запускает polling и завершает процесс с информационным логом.
+- Сохранена обратная совместимость:
+  - webhook ingress `POST /bot/webhook` из Iteration 17 продолжает работать без изменений контракта.
+
+### Измененные файлы (ключевые)
+- `app/api/routers/bot_webhook.py`
+- `bot/runtime.py`
+- `bot/main.py`
+- `core/config.py`
+- `.env.example`
+- `tests/api/test_bot_webhook.py`
+- `docs/API_REFERENCE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен `tests/api/test_bot_webhook.py`:
+  - проверка `GET /bot/webhook/info`,
+  - проверка `POST /bot/webhook/set` (payload и fallback на env),
+  - проверка `POST /bot/webhook/delete`,
+  - проверка `400`, если URL для set отсутствует.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Webhook management endpoints не ограничены отдельной admin-аутентификацией на уровне API (в MVP предполагается эксплуатационный perimeter).
+- `TELEGRAM_USE_WEBHOOK` управляет запуском polling-процесса, но разделение compose-профилей остается задачей deployment-конфигурации.
+
+---
+
+## Итерация 19 — Webhook security hardening + Ops integration
+
+### Что сделано
+- Закрыт риск незащищенного webhook-операционного API:
+  - для `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`
+    добавлена проверка заголовка `X-Webhook-Admin-Token`,
+  - токен берется из `WEBHOOK_ADMIN_TOKEN`,
+  - при несовпадении возвращается `401 Invalid webhook admin token`.
+- Добавлена конфигурация:
+  - `WEBHOOK_ADMIN_TOKEN` в `core/config.py` и `.env.example`.
+- Расширен ops-раздел Telegram-бота для работы с webhook:
+  - кнопка `Webhook info` (вызов `/bot/webhook/info`),
+  - кнопка `Webhook set` (вызов `/bot/webhook/set` с fallback на env),
+  - кнопка `Webhook delete` (вызов `/bot/webhook/delete`),
+  - в запросы автоматически добавляется `X-Webhook-Admin-Token` при заданном `WEBHOOK_ADMIN_TOKEN`.
+- Сохранена совместимость ingress endpoint:
+  - `POST /bot/webhook` продолжает валидировать `X-Telegram-Bot-Api-Secret-Token`
+    и не требует `WEBHOOK_ADMIN_TOKEN`.
+
+### Измененные файлы (ключевые)
+- `core/config.py`
+- `app/api/routers/bot_webhook.py`
+- `bot/handlers/ops.py`
+- `.env.example`
+- `tests/api/test_bot_webhook.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен `tests/api/test_bot_webhook.py`:
+  - проверка `401` для webhook management endpoint при неверном `X-Webhook-Admin-Token`,
+  - существующие позитивные кейсы для info/set/delete обновлены с учетом admin token.
+- Расширен `tests/bot/test_ops_handler_helpers.py`:
+  - проверка новых webhook-кнопок в ops keyboard,
+  - проверка helper `_webhook_headers()` (пустой/заполненный token).
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- В MVP webhook management защищен единым shared-токеном (`WEBHOOK_ADMIN_TOKEN`) без ротации/TTL и без отдельной ролевой матрицы API.
+- В ops-интерфейсе Telegram webhook set использует конфигурационный URL (`TELEGRAM_WEBHOOK_URL`); интерактивный ввод URL в боте пока не реализован.
+
+---
+
+## Итерация 20 — Webhook auto-sync on API startup
+
+### Что сделано
+- Добавлена автоматическая синхронизация webhook-режима на старте API:
+  - новый runtime helper `sync_webhook_mode()` в `bot/runtime.py`,
+  - интеграция вызова в `startup_event` (`app/main.py`).
+- Поведение auto-sync:
+  - если `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP=false` → синхронизация пропускается;
+  - если `TELEGRAM_USE_WEBHOOK=true`:
+    - при наличии `TELEGRAM_WEBHOOK_URL` вызывается `setWebhook`,
+    - при `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET=true` перед set выполняется `deleteWebhook(drop_pending_updates=true)`,
+    - используется `TELEGRAM_WEBHOOK_SECRET` как `secret_token` (если задан).
+  - если `TELEGRAM_USE_WEBHOOK=false`:
+    - вызывается `deleteWebhook(...)`,
+    - флаг `drop_pending_updates` берется из `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`.
+- Добавлены новые env-флаги:
+  - `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP` (default `true`),
+  - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET` (default `false`),
+  - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE` (default `false`).
+
+### Измененные файлы (ключевые)
+- `bot/runtime.py`
+- `app/main.py`
+- `core/config.py`
+- `.env.example`
+- `tests/bot/test_runtime_webhook_sync.py`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен `tests/bot/test_runtime_webhook_sync.py`:
+  - skip при отключенном autosync,
+  - set webhook при webhook-режиме (включая drop pending on set),
+  - delete webhook при polling-режиме,
+  - skip при пустом `TELEGRAM_WEBHOOK_URL`.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Auto-sync не проверяет идемпотентно текущий `webhook_info.url` перед set/delete (выполняется операционно безопасный, но не оптимальный вызов).
+- Ошибки auto-sync логируются и не блокируют подъем API, чтобы не создавать ложный downtime из-за внешней деградации Telegram Bot API.
+
+---
+
+## Итерация 21 — Unified admin auth + lifespan + CI
+
+### Что сделано
+- Добавлен unified admin dependency:
+  - `app/api/deps.py` с `require_admin_api_token`.
+  - Заголовок: `X-Admin-Api-Token`.
+  - Защищены endpoint-ы:
+    - `/api/queue/*`,
+    - `/api/moderation/*`,
+    - `POST /api/llm/presets/{preset_name}`,
+    - `/bot/webhook/info|set|delete`.
+- Обновлены bot handlers для отправки unified admin header:
+  - `bot/handlers/admin.py`,
+  - `bot/handlers/ops.py`.
+- Переведен lifecycle FastAPI на lifespan:
+  - удалены deprecated `@app.on_event("startup"/"shutdown")`,
+  - startup/shutdown логика перенесена в `lifespan` в `app/main.py`.
+- Добавлен CI workflow:
+  - `.github/workflows/ci.yml`,
+  - steps: install deps, `pytest -q`, import smoke, `alembic upgrade head --sql`.
+
+### Измененные файлы (ключевые)
+- `app/api/deps.py`
+- `app/api/routers/queue_admin.py`
+- `app/api/routers/moderation.py`
+- `app/api/routers/llm.py`
+- `app/api/routers/bot_webhook.py`
+- `bot/handlers/admin.py`
+- `bot/handlers/ops.py`
+- `app/main.py`
+- `.github/workflows/ci.yml`
+- `.env.example`
+- `tests/api/test_admin_api_token_deps.py`
+- `tests/api/test_bot_webhook.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `tests/services/test_queue_reliability.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен `tests/api/test_admin_api_token_deps.py`:
+  - `401` при неверном `X-Admin-Api-Token` для queue/moderation/llm admin endpoint-ов.
+- Обновлены webhook/admin/bot helper tests под unified header.
+- Полный прогон:
+  - `python3 -m pytest -q` (green),
+  - smoke-check импортов и `alembic upgrade head --sql` (green).
+
+### Ограничения на текущем шаге
+- Введен единый shared admin token (`ADMIN_API_TOKEN`) без ролевой матрицы и без per-endpoint token scopes.
+- CI пока базовый (pytest + smoke), без lint/type-check/security scan.
+
+---
+
+## Итерация 22 — Strict admin token + rate-limit/audit для admin API
+
+### Что сделано
+- Удален legacy fallback `WEBHOOK_ADMIN_TOKEN` из активной auth-логики:
+  - unified dependency теперь использует только `ADMIN_API_TOKEN`.
+- Усилен `require_admin_api_token`:
+  - добавлен rate-limit на неуспешные попытки (`429` при превышении),
+  - добавлен audit warning log на невалидные токены (без логирования значения токена).
+- Новые конфиги:
+  - `ADMIN_API_RATE_LIMIT_COUNT` (default `60`),
+  - `ADMIN_API_RATE_LIMIT_WINDOW_SECONDS` (default `60`),
+  - `ADMIN_API_AUDIT_LOG_ENABLED` (default `true`).
+- Bot handlers переведены на strict `ADMIN_API_TOKEN` для admin API вызовов.
+
+### Измененные файлы (ключевые)
+- `app/api/deps.py`
+- `core/config.py`
+- `.env.example`
+- `bot/handlers/admin.py`
+- `bot/handlers/ops.py`
+- `tests/api/test_admin_api_token_deps.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `tests/services/test_queue_reliability.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Расширен `tests/api/test_admin_api_token_deps.py`:
+  - проверка обязательности `ADMIN_API_TOKEN`,
+  - проверка rate-limit (`429` после лимита невалидных попыток).
+- Обновлены helper tests под strict `ADMIN_API_TOKEN`.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Rate-limit хранится in-memory процесса API (не shared между репликами и сбрасывается при рестарте).
+- Audit logging выполняется в application logs без выделенного audit sink.
+
+---
+
+## Итерация 21 — Unified admin API auth + lifespan + CI
+
+### Что сделано
+- Введена единая server-side аутентификация для admin/ops API через dependency:
+  - новый модуль `app/api/deps.py`,
+  - функция `require_admin_api_token`.
+- Добавлен новый конфиг:
+  - `ADMIN_API_TOKEN`,
+  - совместимость с legacy токеном сохранена: если `ADMIN_API_TOKEN` пуст, используется `WEBHOOK_ADMIN_TOKEN`.
+- Подключена unified auth к ключевым admin/ops endpoint-ам:
+  - `/api/queue/*`,
+  - `/api/moderation/*`,
+  - `POST /api/llm/presets/{preset_name}`,
+  - `/bot/webhook/info|set|delete`.
+- Обновлены bot handlers (`admin.py`, `ops.py`) для передачи `X-Admin-Api-Token`
+  в вызовы admin/ops API (с fallback на legacy токен).
+- Выполнена миграция lifecycle FastAPI с deprecated `@app.on_event(...)` на `lifespan`:
+  - startup: `ensure_bot_commands`, `sync_webhook_mode`, запуск scheduler,
+  - shutdown: `close_bot_session`, shutdown scheduler.
+- Добавлен CI workflow GitHub Actions:
+  - `.github/workflows/ci.yml`,
+  - шаги: установка зависимостей, `pytest -q`,
+    smoke-check импортов и `alembic upgrade head --sql`.
+
+### Измененные файлы (ключевые)
+- `app/api/deps.py`
+- `app/api/routers/bot_webhook.py`
+- `app/api/routers/queue_admin.py`
+- `app/api/routers/moderation.py`
+- `app/api/routers/llm.py`
+- `bot/handlers/admin.py`
+- `bot/handlers/ops.py`
+- `app/main.py`
+- `core/config.py`
+- `.env.example`
+- `.github/workflows/ci.yml`
+- `tests/api/test_bot_webhook.py`
+- `tests/api/test_admin_api_token_deps.py`
+- `tests/services/test_queue_reliability.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен `tests/api/test_admin_api_token_deps.py`:
+  - `401` при неверном `X-Admin-Api-Token` для queue/moderation/preset admin endpoint-ов,
+  - fallback на legacy `WEBHOOK_ADMIN_TOKEN`.
+- Обновлен `tests/api/test_bot_webhook.py`:
+  - webhook management использует `X-Admin-Api-Token`,
+  - проверка `401 Invalid admin api token`.
+- Обновлены helper-тесты bot handlers (`admin`/`ops`) под unified headers.
+- Обновлен `tests/services/test_queue_reliability.py` под auth dependency.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Unified admin auth пока token-based без ротации/TTL и без многоуровневой ролевой модели.
+- Часть endpoint-ов (`/api/llm/tasks`, `/api/publications`) остаются editor-facing и не защищаются `ADMIN_API_TOKEN`.

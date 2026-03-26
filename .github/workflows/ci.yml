@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "cursor/**"
+  pull_request:
+
+jobs:
+  tests-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          python -m pytest -q
+
+      - name: Smoke checks
+        env:
+          DATABASE_URL: sqlite:///./smoke.db
+          TELEGRAM_BOT_TOKEN: ci-smoke-token
+        run: |
+          python -c "import app.main; print('import app.main: OK')"
+          python -c "import bot.main; print('import bot.main: OK')"
+          python -m alembic upgrade head --sql

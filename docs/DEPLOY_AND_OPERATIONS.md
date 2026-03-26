@@ -28,8 +28,9 @@
    - `alembic upgrade head`
 3. Запустите API:
    - `uvicorn app.main:app --host 0.0.0.0 --port 8000`
-4. Запустите бота:
-   - `python -m bot.main`
+4. Запустите бота (выберите режим):
+   - polling (локальная разработка): `python -m bot.main`
+   - webhook (production): запуск бота как отдельного polling-процесса не нужен, апдейты приходят в API `POST /bot/webhook`
 5. Запустите worker:
    - `python -m worker`
 
@@ -41,6 +42,42 @@
   - `python3 -c "import bot.main; print('import bot.main: OK')"`
 - Проверка SQL миграций:
   - `alembic upgrade head --sql`
+
+## 3.1. Webhook-режим Telegram (Iteration 17/18)
+
+- Включение режима:
+  - `TELEGRAM_USE_WEBHOOK=true`
+- Секрет заголовка:
+  - `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
+- Admin token для webhook-операций:
+  - `ADMIN_API_TOKEN=<strong-random-token>`
+- Полный URL webhook:
+  - `TELEGRAM_WEBHOOK_URL=https://<your-domain>/bot/webhook`
+- Endpoint:
+  - `POST /bot/webhook`
+  - проверяется заголовок `X-Telegram-Bot-Api-Secret-Token` (если секрет задан)
+  - `GET /bot/webhook/info` (требует `X-Admin-Api-Token`, если задан `ADMIN_API_TOKEN`)
+  - `POST /bot/webhook/set` (требует `X-Admin-Api-Token`, если задан `ADMIN_API_TOKEN`)
+  - `POST /bot/webhook/delete` (требует `X-Admin-Api-Token`, если задан `ADMIN_API_TOKEN`)
+- В polling-режиме (`TELEGRAM_USE_WEBHOOK=false`) бот продолжает работать через `python -m bot.main`.
+
+Webhook operations API:
+- `GET /bot/webhook/info` — получить текущий webhook info из Telegram.
+- `POST /bot/webhook/set` — установить webhook:
+  - body: `url` (optional, fallback к `TELEGRAM_WEBHOOK_URL`), `secret_token` (optional), `drop_pending_updates` (optional).
+- `POST /bot/webhook/delete` — удалить webhook:
+  - query: `drop_pending_updates` (optional).
+
+Пример установки webhook через Bot API:
+
+```bash
+curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://<your-domain>/bot/webhook",
+    "secret_token": "'"${TELEGRAM_WEBHOOK_SECRET}"'"
+  }'
+```
 
 ## 4. Логи и диагностика
 
@@ -73,9 +110,9 @@
 ### Reliability и queue operations (Iteration 10)
 
 - Queue observability API:
-  - `GET /api/queue/stats`
+  - `GET /api/queue/stats` (admin token)
 - Ручной requeue failed jobs:
-  - `POST /api/queue/failed/{job_id}/requeue`
+  - `POST /api/queue/failed/{job_id}/requeue` (admin token)
 - Дополнительные health endpoints:
   - `GET /health/ready`
   - `GET /health/live`
@@ -109,6 +146,55 @@
 - Cron-выражения валидируются на этапе create/update.
 - При изменении источника (`enabled`/`schedule_cron`) scheduler автоматически
   синхронизирует job `fetch_source_{id}`.
+
+### Auto-sync webhook режима на старте API (Iteration 20)
+
+На startup API выполняется синхронизация webhook режима:
+- `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP=true`:
+  - если `TELEGRAM_USE_WEBHOOK=true`:
+    - выполняется `setWebhook` на `TELEGRAM_WEBHOOK_URL`,
+    - `secret_token` берется из `TELEGRAM_WEBHOOK_SECRET` (если задан),
+    - при `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET=true` предварительно выполняется delete webhook с `drop_pending_updates=true`.
+  - если `TELEGRAM_USE_WEBHOOK=false`:
+    - webhook удаляется (`deleteWebhook`),
+    - `drop_pending_updates` контролируется `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`.
+- `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP=false`:
+  - авто-синхронизация отключена, режим управляется вручную через `/bot/webhook/set|delete`.
+
+### Unified admin API auth (Iteration 21)
+
+- Введен единый заголовок админ-доступа:
+  - `X-Admin-Api-Token: <token>`
+- Конфиг:
+  - `ADMIN_API_TOKEN`
+- Dependency применяется к endpoint-ам:
+  - `/api/queue/*`
+  - `/api/moderation/*`
+  - `POST /api/llm/presets/{preset_name}`
+  - `/bot/webhook/info|set|delete`
+
+### Admin auth strict mode + rate limit/audit (Iteration 22)
+
+- Удален legacy fallback `WEBHOOK_ADMIN_TOKEN`:
+  - для admin endpoint-ов используется только `ADMIN_API_TOKEN`.
+- Добавлен rate limit на неуспешные попытки admin auth:
+  - `ADMIN_API_RATE_LIMIT_COUNT` (по умолчанию `60`),
+  - `ADMIN_API_RATE_LIMIT_WINDOW_SECONDS` (по умолчанию `60`).
+- Добавлен audit logging неуспешных попыток admin auth:
+  - `ADMIN_API_AUDIT_LOG_ENABLED` (`true/false`).
+- Поведение dependency:
+  - при неверном токене: `401 Invalid admin api token`,
+  - при превышении лимита неверных попыток: `429 Too many invalid admin token attempts`.
+
+### CI (Iteration 21)
+
+- Добавлен workflow:
+  - `.github/workflows/ci.yml`
+- Что выполняется в CI:
+  - установка зависимостей,
+  - `python3 -m pytest -q`,
+  - smoke-check импортов,
+  - `alembic upgrade head --sql`.
 
 ## 5. Управление доступом
 

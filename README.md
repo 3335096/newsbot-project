@@ -54,6 +54,16 @@
 - `TELEGRAM_CHANNEL_IDS`
 - `OPENROUTER_API_KEY`
 - `APP_BASE_URL`
+- `TELEGRAM_WEBHOOK_SECRET`
+- `TELEGRAM_WEBHOOK_URL`
+- `TELEGRAM_USE_WEBHOOK`
+- `ADMIN_API_TOKEN`
+- `ADMIN_API_RATE_LIMIT_COUNT`
+- `ADMIN_API_RATE_LIMIT_WINDOW_SECONDS`
+- `ADMIN_API_AUDIT_LOG_ENABLED`
+- `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP`
+- `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET`
+- `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`
 - `DEFAULT_TARGET_LANGUAGE`
 - `LLM_DEFAULT_MODEL_TRANSLATE`
 - `LLM_DEFAULT_MODEL_REWRITE`
@@ -67,7 +77,7 @@
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–12:
+На данный момент завершены итерации 1–21:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -81,3 +91,13 @@
 - Итер. 10: надежность очередей (DLQ marker queue + manual requeue endpoint), queue observability (`/api/queue/stats`, метрики queue events/depth), readiness check Redis/worker (`/health/ready`) и worker heartbeat.
 - Итер. 11: расширение bot UX для источников — FSM-сценарии создания/редактирования/удаления источников прямо в Telegram (без обязательного перехода в API для базовых операций).
 - Итер. 12: расширение админского UX для LLM-пресетов — inline FSM-редактирование `system_prompt` и `user_template` из карточки пресета (команды `/preset_system` и `/preset_user` сохранены как fallback).
+- Итер. 13: расширение админского UX для LLM-пресетов — управление `default_model` из карточки пресета (inline FSM + команда `/preset_model` как fallback).
+- Итер. 14: расширение bot UX для источников — редактирование через Telegram не только `name/cron`, но и `type`, `url`, `translate_enabled`, `default_target_language`.
+- Итер. 15: операционный раздел в Telegram-боте для админов — просмотр queue stats (`/api/queue/stats`) и readiness (`/health/ready`) с быстрым обновлением через inline-кнопки.
+- Итер. 16: закрытие bot settings и операций — реализован рабочий раздел `Настройки` (пользовательские параметры языка/изображений в БД через `/api/users/{telegram_user_id}/settings`) и UI‑requeue failed jobs в `Операции` (список marker jobs + кнопки requeue).
+- Итер. 17: production webhook для Telegram — endpoint `/bot/webhook` принимает реальные updates, валидирует `X-Telegram-Bot-Api-Secret-Token` (если задан), и передает апдейт в общий `aiogram.Dispatcher` runtime.
+- Итер. 18: операционное управление webhook — добавлены API endpoints `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`, а `bot.main` стал mode-aware (`TELEGRAM_USE_WEBHOOK`) и не запускает polling в webhook-профиле.
+- Итер. 19: безопасность и bot-ops интеграция webhook — для `info/set/delete` добавлена защита `X-Webhook-Admin-Token` (через `WEBHOOK_ADMIN_TOKEN`), а в разделе `Операции` появились кнопки `Webhook info/set/delete`.
+- Итер. 20: автоматическая синхронизация webhook-режима на старте API — добавлен `sync_webhook_mode()` (set/delete/skip по конфигу) с новыми флагами autosync/drop-pending, чтобы исключить ручной drift после перезапусков.
+- Итер. 21: production hardening — unified admin API token (`X-Admin-Api-Token`) для admin/ops endpoint-ов, миграция lifecycle на FastAPI lifespan, и базовый CI workflow в GitHub Actions (pytest + smoke).
+- Итер. 22: security hardening admin API — удален legacy `WEBHOOK_ADMIN_TOKEN` fallback, включен строгий `ADMIN_API_TOKEN` для admin endpoints, добавлены базовый rate-limit и audit logging для невалидных admin token попыток.

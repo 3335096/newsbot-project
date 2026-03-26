@@ -8,6 +8,7 @@ from app.api.routers import (
     publications,
     queue_admin,
     sources,
+    users,
 )
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "publications",
     "queue_admin",
     "sources",
+    "users",
 ]
 

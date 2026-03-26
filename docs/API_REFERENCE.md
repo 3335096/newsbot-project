@@ -267,4 +267,74 @@ Prometheus-метрики приложения в формате `text/plain; ve
 
 ### `POST /bot/webhook`
 
-Placeholder endpoint для webhook-интеграции (будет расширяться в следующих итерациях).
+Webhook endpoint для Telegram updates.
+
+Поведение:
+- принимает update payload Telegram;
+- валидирует payload через `aiogram.types.Update`;
+- передает update в общий aiogram dispatcher (`feed_update`);
+- возвращает `{"status":"ok"}` при успешной обработке.
+
+Security:
+- если задан `TELEGRAM_WEBHOOK_SECRET`, endpoint требует header:
+  - `X-Telegram-Bot-Api-Secret-Token: <secret>`
+- при несовпадении — `401 Invalid webhook secret`.
+
+### `GET /bot/webhook/info`
+
+Возвращает текущее состояние webhook, полученное из Telegram Bot API.
+
+Admin security:
+- endpoint использует unified admin dependency;
+- если задан `ADMIN_API_TOKEN`, требуется header:
+  - `X-Admin-Api-Token: <token>`.
+
+### `POST /bot/webhook/set`
+
+Устанавливает webhook URL в Telegram Bot API.
+
+Тело запроса:
+
+```json
+{
+  "url": "https://example.com/bot/webhook",
+  "secret_token": "optional-secret",
+  "drop_pending_updates": false
+}
+```
+
+- `url` можно не передавать, если заполнен `TELEGRAM_WEBHOOK_URL`.
+- `secret_token` можно не передавать, тогда используется `TELEGRAM_WEBHOOK_SECRET`.
+- при `drop_pending_updates=true` перед установкой webhook выполняется `deleteWebhook(drop_pending_updates=true)`.
+
+Security:
+- если задан `ADMIN_API_TOKEN`, endpoint требует header:
+  - `X-Admin-Api-Token: <token>`;
+- при несовпадении — `401 Invalid admin api token`.
+
+### `POST /bot/webhook/delete`
+
+Удаляет webhook.
+
+Query-параметры:
+- `drop_pending_updates` (`false` по умолчанию)
+
+Security:
+- если задан `ADMIN_API_TOKEN`, endpoint требует header:
+  - `X-Admin-Api-Token: <token>`;
+- при несовпадении — `401 Invalid admin api token`.
+
+## Admin API auth (Iteration 21)
+
+Unified admin auth dependency применяется к admin/ops endpoint-ам:
+- `/api/queue/*`
+- `/api/moderation/*`
+- `POST /api/llm/presets/{preset_name}`
+- `/bot/webhook/info|set|delete`
+
+Заголовок:
+- `X-Admin-Api-Token: <token>`
+
+Поведение:
+- при несовпадении — `401 Invalid admin api token`;
+- при многократных неверных попытках действует rate-limit (`429 Too many invalid admin token attempts`).

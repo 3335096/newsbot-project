@@ -21,6 +21,9 @@ class SourceCreateState(StatesGroup):
 class SourceEditState(StatesGroup):
     waiting_for_name = State()
     waiting_for_cron = State()
+    waiting_for_type = State()
+    waiting_for_url = State()
+    waiting_for_default_language = State()
 
 
 def _is_allowed_user(user_id: int) -> bool:
@@ -62,6 +65,30 @@ def _source_keyboard(source: dict) -> types.InlineKeyboardMarkup:
                 types.InlineKeyboardButton(
                     text="Изменить cron",
                     callback_data=f"source_edit_cron_{source_id}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="Изменить тип",
+                    callback_data=f"source_edit_type_{source_id}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="Изменить URL",
+                    callback_data=f"source_edit_url_{source_id}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="Переключить перевод",
+                    callback_data=f"source_edit_translate_{source_id}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="Изменить язык по умолчанию",
+                    callback_data=f"source_edit_lang_{source_id}",
                 )
             ],
             [
@@ -338,6 +365,164 @@ async def source_edit_cron_finish(message: types.Message, state: FSMContext):
         )
         if response.status_code != 200:
             await message.answer(f"Не удалось обновить cron: {response.text}")
+            return
+        source = response.json()
+    await message.answer(
+        "Источник обновлен:\n"
+        f"{_source_text(source)}",
+        reply_markup=_source_keyboard(source),
+    )
+    await state.clear()
+
+
+@router.callback_query(F.data.startswith("source_edit_type_"))
+async def source_edit_type_start(callback: CallbackQuery, state: FSMContext):
+    if not _is_allowed_user(callback.from_user.id):
+        await callback.message.answer("Доступ запрещен.")
+        await callback.answer()
+        return
+    source_id = callback.data.replace("source_edit_type_", "", 1)
+    await state.clear()
+    await state.update_data(source_id=source_id)
+    await callback.message.answer(
+        f"Введите новый тип для источника #{source_id}: rss или site"
+    )
+    await state.set_state(SourceEditState.waiting_for_type)
+    await callback.answer()
+
+
+@router.message(SourceEditState.waiting_for_type)
+async def source_edit_type_finish(message: types.Message, state: FSMContext):
+    if not await _ensure_allowed_message(message, state):
+        return
+    source_type = (message.text or "").strip().lower()
+    if source_type not in {"rss", "site"}:
+        await message.answer("Неверный тип. Введите: rss или site")
+        return
+    data = await state.get_data()
+    source_id = data.get("source_id")
+    async with httpx.AsyncClient() as client:
+        response = await client.put(
+            f"{settings.APP_BASE_URL}/api/sources/{source_id}",
+            json={"type": source_type},
+        )
+        if response.status_code != 200:
+            await message.answer(f"Не удалось обновить тип: {response.text}")
+            return
+        source = response.json()
+    await message.answer(
+        "Источник обновлен:\n"
+        f"{_source_text(source)}",
+        reply_markup=_source_keyboard(source),
+    )
+    await state.clear()
+
+
+@router.callback_query(F.data.startswith("source_edit_url_"))
+async def source_edit_url_start(callback: CallbackQuery, state: FSMContext):
+    if not _is_allowed_user(callback.from_user.id):
+        await callback.message.answer("Доступ запрещен.")
+        await callback.answer()
+        return
+    source_id = callback.data.replace("source_edit_url_", "", 1)
+    await state.clear()
+    await state.update_data(source_id=source_id)
+    await callback.message.answer(f"Введите новый URL для источника #{source_id}:")
+    await state.set_state(SourceEditState.waiting_for_url)
+    await callback.answer()
+
+
+@router.message(SourceEditState.waiting_for_url)
+async def source_edit_url_finish(message: types.Message, state: FSMContext):
+    if not await _ensure_allowed_message(message, state):
+        return
+    url = (message.text or "").strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        await message.answer("URL должен начинаться с http:// или https://")
+        return
+    data = await state.get_data()
+    source_id = data.get("source_id")
+    async with httpx.AsyncClient() as client:
+        response = await client.put(
+            f"{settings.APP_BASE_URL}/api/sources/{source_id}",
+            json={"url": url},
+        )
+        if response.status_code != 200:
+            await message.answer(f"Не удалось обновить URL: {response.text}")
+            return
+        source = response.json()
+    await message.answer(
+        "Источник обновлен:\n"
+        f"{_source_text(source)}",
+        reply_markup=_source_keyboard(source),
+    )
+    await state.clear()
+
+
+@router.callback_query(F.data.startswith("source_edit_translate_"))
+async def source_edit_translate_toggle(callback: CallbackQuery):
+    if not _is_allowed_user(callback.from_user.id):
+        await callback.message.answer("Доступ запрещен.")
+        await callback.answer()
+        return
+    source_id = callback.data.replace("source_edit_translate_", "", 1)
+    async with httpx.AsyncClient() as client:
+        current_resp = await client.get(f"{settings.APP_BASE_URL}/api/sources/{source_id}")
+        if current_resp.status_code != 200:
+            await callback.message.answer(f"Не удалось загрузить источник: {current_resp.text}")
+            await callback.answer()
+            return
+        source = current_resp.json()
+        update_resp = await client.put(
+            f"{settings.APP_BASE_URL}/api/sources/{source_id}",
+            json={"translate_enabled": not bool(source.get("translate_enabled"))},
+        )
+        if update_resp.status_code != 200:
+            await callback.message.answer(f"Не удалось обновить перевод: {update_resp.text}")
+            await callback.answer()
+            return
+        updated = update_resp.json()
+    await callback.message.answer(
+        "Источник обновлен:\n"
+        f"{_source_text(updated)}",
+        reply_markup=_source_keyboard(updated),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("source_edit_lang_"))
+async def source_edit_lang_start(callback: CallbackQuery, state: FSMContext):
+    if not _is_allowed_user(callback.from_user.id):
+        await callback.message.answer("Доступ запрещен.")
+        await callback.answer()
+        return
+    source_id = callback.data.replace("source_edit_lang_", "", 1)
+    await state.clear()
+    await state.update_data(source_id=source_id)
+    await callback.message.answer(
+        f"Введите язык по умолчанию для источника #{source_id} (например: ru, en, de):"
+    )
+    await state.set_state(SourceEditState.waiting_for_default_language)
+    await callback.answer()
+
+
+@router.message(SourceEditState.waiting_for_default_language)
+async def source_edit_lang_finish(message: types.Message, state: FSMContext):
+    if not await _ensure_allowed_message(message, state):
+        return
+    lang = (message.text or "").strip().lower()
+    if len(lang) < 2:
+        await message.answer("Код языка слишком короткий. Пример: ru")
+        return
+    data = await state.get_data()
+    source_id = data.get("source_id")
+    async with httpx.AsyncClient() as client:
+        response = await client.put(
+            f"{settings.APP_BASE_URL}/api/sources/{source_id}",
+            json={"default_target_language": lang},
+        )
+        if response.status_code != 200:
+            await message.answer(f"Не удалось обновить язык: {response.text}")
             return
         source = response.json()
     await message.answer(

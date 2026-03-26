@@ -1,4 +1,5 @@
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from loguru import logger
@@ -13,11 +14,33 @@ from app.api.routers import (
     publications,
     queue_admin,
     sources,
+    users,
 )
 from app.metrics import observe_http_request
 from app.services.scheduler import scheduler
+from bot.runtime import close_bot_session, ensure_bot_commands, sync_webhook_mode
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting up...")
+    await ensure_bot_commands()
+    try:
+        sync_result = await sync_webhook_mode()
+        logger.info("Webhook autosync result: {}", sync_result)
+    except Exception as exc:
+        logger.exception("Webhook autosync failed: {}", exc)
+    scheduler.start()
+    scheduler.load_scheduled_jobs()
+    try:
+        yield
+    finally:
+        logger.info("Shutting down...")
+        await close_bot_session()
+        scheduler.scheduler.shutdown()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.include_router(health.router)
 app.include_router(drafts.router, prefix="/api")
@@ -26,6 +49,7 @@ app.include_router(moderation.router, prefix="/api")
 app.include_router(publications.router, prefix="/api")
 app.include_router(sources.router, prefix="/api")
 app.include_router(queue_admin.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 app.include_router(metrics.router)
 app.include_router(bot_webhook.router)
 
@@ -42,13 +66,3 @@ async def prometheus_middleware(request: Request, call_next):
     )
     return response
 
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Starting up...")
-    scheduler.start()
-    scheduler.load_scheduled_jobs()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down...")
-    scheduler.scheduler.shutdown()

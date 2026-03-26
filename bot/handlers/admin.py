@@ -12,6 +12,14 @@ router = Router()
 class PresetEditState(StatesGroup):
     waiting_for_system_prompt = State()
     waiting_for_user_template = State()
+    waiting_for_default_model = State()
+
+
+def _admin_api_headers() -> dict[str, str]:
+    token = settings.ADMIN_API_TOKEN.strip()
+    if not token:
+        return {}
+    return {"X-Admin-Api-Token": token}
 
 def _admin_keyboard() -> types.InlineKeyboardMarkup:
     return types.InlineKeyboardMarkup(
@@ -39,6 +47,12 @@ def _preset_action_keyboard(preset_name: str) -> types.InlineKeyboardMarkup:
             ],
             [
                 types.InlineKeyboardButton(
+                    text="Изменить default model",
+                    callback_data=f"admin_preset_edit_model_{preset_name}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
                     text="Вкл/выкл",
                     callback_data=f"admin_preset_toggle_{preset_name}",
                 )
@@ -55,7 +69,10 @@ async def admin_panel(message: types.Message):
 @router.callback_query(F.data == "admin_llm_presets", F.from_user.id.in_(settings.admin_ids))
 async def admin_llm_presets(callback: types.CallbackQuery):
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{settings.APP_BASE_URL}/api/llm/presets")
+        response = await client.get(
+            f"{settings.APP_BASE_URL}/api/llm/presets",
+            headers=_admin_api_headers(),
+        )
         if response.status_code != 200:
             await callback.message.answer(f"Не удалось загрузить пресеты: {response.text}")
             await callback.answer()
@@ -84,7 +101,10 @@ async def admin_llm_presets(callback: types.CallbackQuery):
 @router.callback_query(F.data == "admin_moderation_rules", F.from_user.id.in_(settings.admin_ids))
 async def admin_moderation_rules(callback: types.CallbackQuery):
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{settings.APP_BASE_URL}/api/moderation/rules")
+        response = await client.get(
+            f"{settings.APP_BASE_URL}/api/moderation/rules",
+            headers=_admin_api_headers(),
+        )
         if response.status_code != 200:
             await callback.message.answer(f"Не удалось загрузить правила модерации: {response.text}")
             await callback.answer()
@@ -136,7 +156,10 @@ async def admin_moderation_rules(callback: types.CallbackQuery):
 async def admin_toggle_rule(callback: types.CallbackQuery):
     rule_id = callback.data.replace("admin_rule_toggle_", "", 1)
     async with httpx.AsyncClient() as client:
-        response = await client.post(f"{settings.APP_BASE_URL}/api/moderation/rules/{rule_id}/toggle")
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/moderation/rules/{rule_id}/toggle",
+            headers=_admin_api_headers(),
+        )
         if response.status_code != 200:
             await callback.message.answer(f"Не удалось переключить правило: {response.text}")
             await callback.answer()
@@ -174,6 +197,7 @@ async def admin_rule_add(message: types.Message):
                 "enabled": True,
                 "comment": comment,
             },
+            headers=_admin_api_headers(),
         )
         if response.status_code != 200:
             await message.answer(f"Ошибка: {response.text}")
@@ -188,7 +212,10 @@ async def admin_rule_add(message: types.Message):
 async def admin_toggle_preset(callback: types.CallbackQuery):
     preset_name = callback.data.replace("admin_preset_toggle_", "", 1)
     async with httpx.AsyncClient() as client:
-        presets_resp = await client.get(f"{settings.APP_BASE_URL}/api/llm/presets")
+        presets_resp = await client.get(
+            f"{settings.APP_BASE_URL}/api/llm/presets",
+            headers=_admin_api_headers(),
+        )
         if presets_resp.status_code != 200:
             await callback.message.answer(f"Не удалось загрузить пресет: {presets_resp.text}")
             await callback.answer()
@@ -202,6 +229,7 @@ async def admin_toggle_preset(callback: types.CallbackQuery):
         update_resp = await client.post(
             f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
             json={"enabled": not preset["enabled"]},
+            headers=_admin_api_headers(),
         )
         if update_resp.status_code != 200:
             await callback.message.answer(f"Не удалось обновить пресет: {update_resp.text}")
@@ -244,6 +272,21 @@ async def admin_edit_user_start(callback: types.CallbackQuery, state: FSMContext
     await callback.answer()
 
 
+@router.callback_query(
+    F.data.startswith("admin_preset_edit_model_"), F.from_user.id.in_(settings.admin_ids)
+)
+async def admin_edit_model_start(callback: types.CallbackQuery, state: FSMContext):
+    preset_name = callback.data.replace("admin_preset_edit_model_", "", 1)
+    await state.clear()
+    await state.update_data(preset_name=preset_name)
+    await callback.message.answer(
+        f"Введите default model для пресета '{preset_name}' "
+        "(или '-' чтобы сбросить на значение по умолчанию сервиса):"
+    )
+    await state.set_state(PresetEditState.waiting_for_default_model)
+    await callback.answer()
+
+
 @router.message(Command("preset_system"), F.from_user.id.in_(settings.admin_ids))
 async def admin_update_system_prompt(message: types.Message):
     parts = message.text.split(maxsplit=2) if message.text else []
@@ -255,6 +298,7 @@ async def admin_update_system_prompt(message: types.Message):
         response = await client.post(
             f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
             json={"system_prompt": new_prompt},
+            headers=_admin_api_headers(),
         )
         if response.status_code != 200:
             await message.answer(f"Ошибка: {response.text}")
@@ -278,6 +322,7 @@ async def admin_update_system_prompt_fsm(message: types.Message, state: FSMConte
         response = await client.post(
             f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
             json={"system_prompt": new_prompt},
+            headers=_admin_api_headers(),
         )
         if response.status_code != 200:
             await message.answer(f"Ошибка обновления пресета: {response.text}")
@@ -300,11 +345,35 @@ async def admin_update_user_template(message: types.Message):
         response = await client.post(
             f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
             json={"user_prompt_template": new_template},
+            headers=_admin_api_headers(),
         )
         if response.status_code != 200:
             await message.answer(f"Ошибка: {response.text}")
             return
         await message.answer(f"User template обновлен для пресета '{preset_name}'.")
+
+
+@router.message(Command("preset_model"), F.from_user.id.in_(settings.admin_ids))
+async def admin_update_default_model(message: types.Message):
+    parts = message.text.split(maxsplit=2) if message.text else []
+    if len(parts) < 3:
+        await message.answer("Использование: /preset_model <preset_name> <default_model|->")
+        return
+    preset_name, model_value = parts[1], parts[2].strip()
+    default_model = None if model_value == "-" else model_value
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
+            json={"default_model": default_model},
+            headers=_admin_api_headers(),
+        )
+        if response.status_code != 200:
+            await message.answer(f"Ошибка: {response.text}")
+            return
+        rendered_value = default_model or "(service default)"
+        await message.answer(
+            f"Default model обновлен для пресета '{preset_name}': {rendered_value}"
+        )
 
 
 @router.message(PresetEditState.waiting_for_user_template, F.from_user.id.in_(settings.admin_ids))
@@ -323,12 +392,46 @@ async def admin_update_user_template_fsm(message: types.Message, state: FSMConte
         response = await client.post(
             f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
             json={"user_prompt_template": new_template},
+            headers=_admin_api_headers(),
         )
         if response.status_code != 200:
             await message.answer(f"Ошибка обновления пресета: {response.text}")
             return
     await message.answer(
         f"User template обновлен для пресета '{preset_name}'.",
+        reply_markup=_preset_action_keyboard(preset_name),
+    )
+    await state.clear()
+
+
+@router.message(PresetEditState.waiting_for_default_model, F.from_user.id.in_(settings.admin_ids))
+async def admin_update_default_model_fsm(message: types.Message, state: FSMContext):
+    model_value = (message.text or "").strip()
+    if not model_value:
+        await message.answer(
+            "Текст не может быть пустым. Введите default model или '-' для сброса:"
+        )
+        return
+    data = await state.get_data()
+    preset_name = data.get("preset_name")
+    if not preset_name:
+        await message.answer("Не удалось определить пресет. Повторите действие.")
+        await state.clear()
+        return
+
+    default_model = None if model_value == "-" else model_value
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.APP_BASE_URL}/api/llm/presets/{preset_name}",
+            json={"default_model": default_model},
+            headers=_admin_api_headers(),
+        )
+        if response.status_code != 200:
+            await message.answer(f"Ошибка обновления пресета: {response.text}")
+            return
+    rendered_value = default_model or "(service default)"
+    await message.answer(
+        f"Default model обновлен для пресета '{preset_name}': {rendered_value}",
         reply_markup=_preset_action_keyboard(preset_name),
     )
     await state.clear()
