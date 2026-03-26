@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.models.llm_task import LLMTask
 from app.db.session import get_db
 from app.metrics import record_llm_task
-from app.services.queue_dispatcher import enqueue_llm_task
+from app.services.queue_dispatcher import enqueue_llm_task, requeue_llm_task
 from app.services.llm_preset_service import LLMPresetService
 from app.services.llm_task_service import LLMTaskService
 
@@ -157,6 +157,22 @@ async def retry_llm_task(task_id: int, payload: RetryTaskPayload, db: Session = 
     db.commit()
     db.refresh(task)
     enqueue_llm_task(db, task, max_len=payload.max_len)
+    db.refresh(task)
+    return _task_to_out(task)
+
+
+@router.post("/tasks/{task_id}/requeue", response_model=LLMTaskOut)
+async def requeue_failed_llm_task(task_id: int, payload: RetryTaskPayload, db: Session = Depends(get_db)):
+    task = db.query(LLMTask).filter(LLMTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.status != "error":
+        raise HTTPException(status_code=409, detail="Only errored tasks can be requeued")
+    if not task.draft_id or not task.task_type or not task.preset:
+        raise HTTPException(status_code=400, detail="Task payload is incomplete for requeue")
+
+    if requeue_llm_task(db, task, max_len=payload.max_len) is None:
+        raise HTTPException(status_code=409, detail="Task was not requeued")
     db.refresh(task)
     return _task_to_out(task)
 

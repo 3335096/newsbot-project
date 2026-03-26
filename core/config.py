@@ -23,9 +23,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
     QUEUE_LLM_NAME: str = "llm"
     QUEUE_PUBLICATIONS_NAME: str = "publications"
+    QUEUE_FAILED_NAME: str = "failed"
     QUEUE_DEFAULT_TIMEOUT_SECONDS: int = 600
     QUEUE_RESULT_TTL_SECONDS: int = 86400
     QUEUE_JOB_RETRIES: int = 3
+    WORKER_HEARTBEAT_TTL_SECONDS: int = 60
 
     DEFAULT_TARGET_LANGUAGE: str = "ru"
     ENABLE_IMAGES: bool = True

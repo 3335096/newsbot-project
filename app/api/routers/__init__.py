@@ -1,4 +1,24 @@
-from app.api.routers import bot_webhook, drafts, health, llm, metrics, moderation, publications, sources
+from app.api.routers import (
+    bot_webhook,
+    drafts,
+    health,
+    llm,
+    metrics,
+    moderation,
+    publications,
+    queue_admin,
+    sources,
+)
 
-__all__ = ["bot_webhook", "drafts", "health", "llm", "metrics", "moderation", "publications", "sources"]
+__all__ = [
+    "bot_webhook",
+    "drafts",
+    "health",
+    "llm",
+    "metrics",
+    "moderation",
+    "publications",
+    "queue_admin",
+    "sources",
+]
 

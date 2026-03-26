@@ -11,6 +11,7 @@ from app.api.routers import (
     metrics,
     moderation,
     publications,
+    queue_admin,
     sources,
 )
 from app.metrics import observe_http_request
@@ -24,6 +25,7 @@ app.include_router(llm.router, prefix="/api")
 app.include_router(moderation.router, prefix="/api")
 app.include_router(publications.router, prefix="/api")
 app.include_router(sources.router, prefix="/api")
+app.include_router(queue_admin.router, prefix="/api")
 app.include_router(metrics.router)
 app.include_router(bot_webhook.router)
 
