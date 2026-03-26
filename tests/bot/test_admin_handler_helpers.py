@@ -24,3 +24,16 @@ def test_preset_action_keyboard_uses_preset_name_in_callbacks() -> None:
     assert "admin_preset_edit_user_summary" in callback_data
     assert "admin_preset_edit_model_summary" in callback_data
     assert "admin_preset_toggle_summary" in callback_data
+
+
+def test_admin_api_headers_uses_admin_api_token() -> None:
+    original_admin = admin.settings.ADMIN_API_TOKEN
+    original_webhook = admin.settings.WEBHOOK_ADMIN_TOKEN
+    admin.settings.ADMIN_API_TOKEN = "admin-token"
+    admin.settings.WEBHOOK_ADMIN_TOKEN = "webhook-fallback"
+    try:
+        headers = admin._admin_api_headers()
+        assert headers == {"X-Admin-Api-Token": "admin-token"}
+    finally:
+        admin.settings.ADMIN_API_TOKEN = original_admin
+        admin.settings.WEBHOOK_ADMIN_TOKEN = original_webhook

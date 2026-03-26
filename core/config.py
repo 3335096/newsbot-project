@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET: bool = False
     TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE: bool = False
     WEBHOOK_ADMIN_TOKEN: str = ""
+    ADMIN_API_TOKEN: str = ""
 
     OPENROUTER_API_KEY: str = ""
     LLM_DEFAULT_MODEL_TRANSLATE: str = "openai/gpt-4o-mini"

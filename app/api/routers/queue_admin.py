@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from app.api.deps import require_admin_api_token
 from app.metrics import observe_queue_depth, record_queue_event
 from app.queue import (
     fetch_job,
@@ -61,7 +62,7 @@ def _to_stats_out(snapshot) -> QueueStatsOut:
 
 
 @router.get("/stats", response_model=QueueOverviewOut)
-async def get_queue_stats():
+async def get_queue_stats(_: None = Depends(require_admin_api_token)):
     queue_names = [
         settings.QUEUE_LLM_NAME,
         settings.QUEUE_PUBLICATIONS_NAME,
@@ -90,7 +91,7 @@ async def get_queue_stats():
 
 
 @router.post("/failed/{job_id}/requeue", response_model=RequeueOut)
-async def requeue_failed_job(job_id: str):
+async def requeue_failed_job(job_id: str, _: None = Depends(require_admin_api_token)):
     marker = fetch_job(f"failed_{job_id}")
     if marker is None:
         raise HTTPException(status_code=404, detail="Failed marker job not found")
@@ -113,7 +114,10 @@ async def requeue_failed_job(job_id: str):
 
 
 @router.get("/failed", response_model=list[FailedJobOut])
-async def list_failed_jobs(limit: int = Query(default=20, ge=1, le=100)):
+async def list_failed_jobs(
+    limit: int = Query(default=20, ge=1, le=100),
+    _: None = Depends(require_admin_api_token),
+):
     failed_queue = get_failed_queue()
     marker_ids = failed_queue.job_ids[:limit]
     items: list[FailedJobOut] = []

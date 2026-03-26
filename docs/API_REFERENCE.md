@@ -284,8 +284,11 @@ Security:
 
 Возвращает текущее состояние webhook, полученное из Telegram Bot API.
 
-Если задан `WEBHOOK_ADMIN_TOKEN`, endpoint требует header:
-- `X-Webhook-Admin-Token: <token>`
+Admin security:
+- endpoint использует unified admin dependency;
+- если задан `ADMIN_API_TOKEN`, требуется header:
+  - `X-Admin-Api-Token: <token>`;
+- fallback: если `ADMIN_API_TOKEN` пуст, используется legacy `WEBHOOK_ADMIN_TOKEN`.
 
 ### `POST /bot/webhook/set`
 
@@ -306,9 +309,10 @@ Security:
 - при `drop_pending_updates=true` перед установкой webhook выполняется `deleteWebhook(drop_pending_updates=true)`.
 
 Security:
-- если задан `WEBHOOK_ADMIN_TOKEN`, endpoint требует header:
-  - `X-Webhook-Admin-Token: <token>`
-- при несовпадении — `401 Invalid webhook admin token`.
+- если задан `ADMIN_API_TOKEN`, endpoint требует header:
+  - `X-Admin-Api-Token: <token>`;
+- fallback: если `ADMIN_API_TOKEN` пуст, используется legacy `WEBHOOK_ADMIN_TOKEN`;
+- при несовпадении — `401 Invalid admin api token`.
 
 ### `POST /bot/webhook/delete`
 
@@ -318,64 +322,22 @@ Query-параметры:
 - `drop_pending_updates` (`false` по умолчанию)
 
 Security:
-- если задан `WEBHOOK_ADMIN_TOKEN`, endpoint требует header:
-  - `X-Webhook-Admin-Token: <token>`
-- при несовпадении — `401 Invalid webhook admin token`.
+- если задан `ADMIN_API_TOKEN`, endpoint требует header:
+  - `X-Admin-Api-Token: <token>`;
+- fallback: если `ADMIN_API_TOKEN` пуст, используется legacy `WEBHOOK_ADMIN_TOKEN`;
+- при несовпадении — `401 Invalid admin api token`.
 
-### `GET /bot/webhook/info`
+## Admin API auth (Iteration 21)
 
-Возвращает текущую информацию webhook из Telegram Bot API:
-- `url`
-- `has_custom_certificate`
-- `pending_update_count`
-- `ip_address`
-- `last_error_date`
-- `last_error_message`
-- `max_connections`
-- `allowed_updates`
+Unified admin auth dependency применяется к admin/ops endpoint-ам:
+- `/api/queue/*`
+- `/api/moderation/*`
+- `POST /api/llm/presets/{preset_name}`
+- `/bot/webhook/info|set|delete`
 
-### `POST /bot/webhook/set`
+Заголовок:
+- `X-Admin-Api-Token: <token>`
 
-Устанавливает webhook через Telegram Bot API.
-
-Тело запроса:
-
-```json
-{
-  "url": "https://example.com/bot/webhook",
-  "secret_token": "optional-secret",
-  "drop_pending_updates": false
-}
-```
-
-Правила:
-- `url` необязателен в payload, если задан `TELEGRAM_WEBHOOK_URL` в конфиге;
-- если `secret_token` не передан, используется `TELEGRAM_WEBHOOK_SECRET` (если задан);
-- при `drop_pending_updates=true` перед установкой выполняется `deleteWebhook(drop_pending_updates=true)`.
-
-Ответ:
-
-```json
-{
-  "status": "ok",
-  "applied": true,
-  "url": "https://example.com/bot/webhook"
-}
-```
-
-### `POST /bot/webhook/delete`
-
-Удаляет webhook.
-
-Query-параметры:
-- `drop_pending_updates` (bool, optional, default: `false`)
-
-Ответ:
-
-```json
-{
-  "status": "ok",
-  "applied": true,
-  "url": null
-}
-```
+Поведение:
+- если `ADMIN_API_TOKEN` пуст, используется fallback к legacy `WEBHOOK_ADMIN_TOKEN`;
+- при несовпадении — `401 Invalid admin api token`.

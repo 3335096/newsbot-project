@@ -50,15 +50,16 @@
 - Секрет заголовка:
   - `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
 - Admin token для webhook-операций:
-  - `WEBHOOK_ADMIN_TOKEN=<strong-random-token>`
+  - `ADMIN_API_TOKEN=<strong-random-token>`
+  - (legacy fallback) `WEBHOOK_ADMIN_TOKEN=<strong-random-token>`
 - Полный URL webhook:
   - `TELEGRAM_WEBHOOK_URL=https://<your-domain>/bot/webhook`
 - Endpoint:
   - `POST /bot/webhook`
   - проверяется заголовок `X-Telegram-Bot-Api-Secret-Token` (если секрет задан)
-  - `GET /bot/webhook/info` (требует `X-Webhook-Admin-Token`, если `WEBHOOK_ADMIN_TOKEN` задан)
-  - `POST /bot/webhook/set` (требует `X-Webhook-Admin-Token`, если `WEBHOOK_ADMIN_TOKEN` задан)
-  - `POST /bot/webhook/delete` (требует `X-Webhook-Admin-Token`, если `WEBHOOK_ADMIN_TOKEN` задан)
+  - `GET /bot/webhook/info` (требует `X-Admin-Api-Token`, если задан `ADMIN_API_TOKEN`)
+  - `POST /bot/webhook/set` (требует `X-Admin-Api-Token`, если задан `ADMIN_API_TOKEN`)
+  - `POST /bot/webhook/delete` (требует `X-Admin-Api-Token`, если задан `ADMIN_API_TOKEN`)
 - В polling-режиме (`TELEGRAM_USE_WEBHOOK=false`) бот продолжает работать через `python -m bot.main`.
 
 Webhook operations API:
@@ -110,9 +111,9 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
 ### Reliability и queue operations (Iteration 10)
 
 - Queue observability API:
-  - `GET /api/queue/stats`
+  - `GET /api/queue/stats` (admin token)
 - Ручной requeue failed jobs:
-  - `POST /api/queue/failed/{job_id}/requeue`
+  - `POST /api/queue/failed/{job_id}/requeue` (admin token)
 - Дополнительные health endpoints:
   - `GET /health/ready`
   - `GET /health/live`
@@ -160,6 +161,29 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
     - `drop_pending_updates` контролируется `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`.
 - `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP=false`:
   - авто-синхронизация отключена, режим управляется вручную через `/bot/webhook/set|delete`.
+
+### Unified admin API auth (Iteration 21)
+
+- Введен единый заголовок админ-доступа:
+  - `X-Admin-Api-Token: <token>`
+- Конфиг:
+  - `ADMIN_API_TOKEN`
+  - fallback для обратной совместимости: `WEBHOOK_ADMIN_TOKEN`
+- Dependency применяется к endpoint-ам:
+  - `/api/queue/*`
+  - `/api/moderation/*`
+  - `POST /api/llm/presets/{preset_name}`
+  - `/bot/webhook/info|set|delete`
+
+### CI (Iteration 21)
+
+- Добавлен workflow:
+  - `.github/workflows/ci.yml`
+- Что выполняется в CI:
+  - установка зависимостей,
+  - `python3 -m pytest -q`,
+  - smoke-check импортов,
+  - `alembic upgrade head --sql`.
 
 ## 5. Управление доступом
 

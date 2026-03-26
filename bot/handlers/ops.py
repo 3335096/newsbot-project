@@ -134,7 +134,10 @@ async def ops_queue_stats(callback: CallbackQuery):
         await callback.answer()
         return
     async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{settings.APP_BASE_URL}/api/queue/stats")
+        resp = await client.get(
+            f"{settings.APP_BASE_URL}/api/queue/stats",
+            headers=_admin_api_headers(),
+        )
         if resp.status_code != 200:
             await callback.message.answer(f"Ошибка queue stats: {resp.text}")
             await callback.answer()
@@ -168,7 +171,10 @@ async def ops_failed_list(callback: CallbackQuery):
         await callback.answer()
         return
     async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{settings.APP_BASE_URL}/api/queue/failed")
+        resp = await client.get(
+            f"{settings.APP_BASE_URL}/api/queue/failed",
+            headers=_admin_api_headers(),
+        )
         if resp.status_code != 200:
             await callback.message.answer(f"Ошибка получения списка failed jobs: {resp.text}")
             await callback.answer()
@@ -203,7 +209,10 @@ async def requeue_failed_command(message: types.Message):
         await message.answer("Использование: /requeue_failed <job_id>")
         return
     async with httpx.AsyncClient() as client:
-        resp = await client.post(f"{settings.APP_BASE_URL}/api/queue/failed/{job_id}/requeue")
+        resp = await client.post(
+            f"{settings.APP_BASE_URL}/api/queue/failed/{job_id}/requeue",
+            headers=_admin_api_headers(),
+        )
         if resp.status_code != 200:
             await message.answer(f"Не удалось requeue job {job_id}: {resp.text}")
             return
@@ -218,7 +227,10 @@ async def ops_requeue_failed(callback: CallbackQuery):
         return
     job_id = callback.data.split(":", 1)[1]
     async with httpx.AsyncClient() as client:
-        resp = await client.post(f"{settings.APP_BASE_URL}/api/queue/failed/{job_id}/requeue")
+        resp = await client.post(
+            f"{settings.APP_BASE_URL}/api/queue/failed/{job_id}/requeue",
+            headers=_admin_api_headers(),
+        )
         if resp.status_code != 200:
             await callback.message.answer(f"Не удалось requeue job {job_id}: {resp.text}")
             await callback.answer()
@@ -231,10 +243,17 @@ async def ops_requeue_failed(callback: CallbackQuery):
 
 
 def _webhook_headers() -> dict[str, str]:
-    token = settings.WEBHOOK_ADMIN_TOKEN.strip()
+    token = settings.ADMIN_API_TOKEN.strip() or settings.WEBHOOK_ADMIN_TOKEN.strip()
     if not token:
         return {}
-    return {"X-Webhook-Admin-Token": token}
+    return {"X-Admin-Api-Token": token}
+
+
+def _admin_api_headers() -> dict[str, str]:
+    token = settings.ADMIN_API_TOKEN.strip()
+    if token:
+        return {"X-Admin-Api-Token": token}
+    return _webhook_headers()
 
 
 @router.callback_query(F.data == "ops_webhook_info")
@@ -246,7 +265,7 @@ async def ops_webhook_info(callback: CallbackQuery):
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{settings.APP_BASE_URL}/bot/webhook/info",
-            headers=_webhook_headers(),
+            headers=_admin_api_headers(),
         )
         if resp.status_code != 200:
             await callback.message.answer(f"Ошибка webhook info: {resp.text}")
@@ -273,7 +292,7 @@ async def ops_webhook_set(callback: CallbackQuery):
         resp = await client.post(
             f"{settings.APP_BASE_URL}/bot/webhook/set",
             json={},
-            headers=_webhook_headers(),
+            headers=_admin_api_headers(),
         )
         if resp.status_code != 200:
             await callback.message.answer(f"Ошибка webhook set: {resp.text}")
@@ -296,7 +315,7 @@ async def ops_webhook_delete(callback: CallbackQuery):
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{settings.APP_BASE_URL}/bot/webhook/delete",
-            headers=_webhook_headers(),
+            headers=_admin_api_headers(),
         )
         if resp.status_code != 200:
             await callback.message.answer(f"Ошибка webhook delete: {resp.text}")

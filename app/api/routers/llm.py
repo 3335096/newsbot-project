@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.models.llm_task import LLMTask
+from app.api.deps import require_admin_api_token
 from app.db.session import get_db
 from app.metrics import record_llm_task
 from app.services.queue_dispatcher import enqueue_llm_task, requeue_llm_task
@@ -90,6 +91,7 @@ async def update_preset(
     preset_name: str,
     payload: PresetUpdatePayload,
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin_api_token),
 ):
     try:
         preset = preset_service.update_preset(

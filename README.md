@@ -58,6 +58,7 @@
 - `TELEGRAM_WEBHOOK_URL`
 - `TELEGRAM_USE_WEBHOOK`
 - `WEBHOOK_ADMIN_TOKEN`
+- `ADMIN_API_TOKEN`
 - `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP`
 - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET`
 - `TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE`
@@ -74,7 +75,7 @@
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–20:
+На данный момент завершены итерации 1–21:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -96,3 +97,4 @@
 - Итер. 18: операционное управление webhook — добавлены API endpoints `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`, а `bot.main` стал mode-aware (`TELEGRAM_USE_WEBHOOK`) и не запускает polling в webhook-профиле.
 - Итер. 19: безопасность и bot-ops интеграция webhook — для `info/set/delete` добавлена защита `X-Webhook-Admin-Token` (через `WEBHOOK_ADMIN_TOKEN`), а в разделе `Операции` появились кнопки `Webhook info/set/delete`.
 - Итер. 20: автоматическая синхронизация webhook-режима на старте API — добавлен `sync_webhook_mode()` (set/delete/skip по конфигу) с новыми флагами autosync/drop-pending, чтобы исключить ручной drift после перезапусков.
+- Итер. 21: production hardening — unified admin API token (`X-Admin-Api-Token`) для admin/ops endpoint-ов, миграция lifecycle на FastAPI lifespan, и базовый CI workflow в GitHub Actions (pytest + smoke).

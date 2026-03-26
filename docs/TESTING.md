@@ -66,17 +66,13 @@
      - webhook set при `TELEGRAM_USE_WEBHOOK=true`,
      - webhook delete при polling mode,
      - skip при пустом `TELEGRAM_WEBHOOK_URL`.
-17. Webhook operations API:
-   - доступ к `GET /bot/webhook/info`, `POST /bot/webhook/set`, `POST /bot/webhook/delete`
-     защищен заголовком `X-Webhook-Admin-Token` (если задан `WEBHOOK_ADMIN_TOKEN`),
+18. Webhook/Admin operations API auth:
+   - доступ к admin endpoint-ам API защищен заголовком `X-Admin-Api-Token`
+     (если задан `ADMIN_API_TOKEN`),
    - `401` при некорректном admin token.
 18. Bot ops webhook helpers:
    - наличие webhook-кнопок в `_ops_keyboard`,
-   - корректная сборка admin-token заголовков в `_webhook_headers`.
-17. Webhook operations API:
-   - `GET /bot/webhook/info`,
-   - `POST /bot/webhook/set` (payload/config fallback, optional drop pending updates),
-   - `POST /bot/webhook/delete`.
+   - корректная сборка admin-token заголовков в `_admin_api_headers`.
 
 ## Быстрый запуск тестов
 

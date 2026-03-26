@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_admin_api_token
 from app.db.session import get_db
 from app.services.moderation_service import ModerationService
 
@@ -28,7 +29,10 @@ class ModerationRuleCreatePayload(BaseModel):
 
 
 @router.get("/rules", response_model=list[ModerationRuleOut])
-async def list_rules(db: Session = Depends(get_db)):
+async def list_rules(
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin_api_token),
+):
     service = ModerationService(db)
     rules = service.list_rules()
     return [
@@ -45,7 +49,11 @@ async def list_rules(db: Session = Depends(get_db)):
 
 
 @router.post("/rules", response_model=ModerationRuleOut)
-async def create_rule(payload: ModerationRuleCreatePayload, db: Session = Depends(get_db)):
+async def create_rule(
+    payload: ModerationRuleCreatePayload,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin_api_token),
+):
     service = ModerationService(db)
     try:
         rule = service.create_rule(
@@ -69,7 +77,11 @@ async def create_rule(payload: ModerationRuleCreatePayload, db: Session = Depend
 
 
 @router.post("/rules/{rule_id}/toggle", response_model=ModerationRuleOut)
-async def toggle_rule(rule_id: int, db: Session = Depends(get_db)):
+async def toggle_rule(
+    rule_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin_api_token),
+):
     service = ModerationService(db)
     try:
         rule = service.toggle_rule(rule_id)

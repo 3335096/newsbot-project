@@ -891,3 +891,68 @@
 ### Ограничения на текущем шаге
 - Auto-sync не проверяет идемпотентно текущий `webhook_info.url` перед set/delete (выполняется операционно безопасный, но не оптимальный вызов).
 - Ошибки auto-sync логируются и не блокируют подъем API, чтобы не создавать ложный downtime из-за внешней деградации Telegram Bot API.
+
+---
+
+## Итерация 21 — Unified admin API auth + lifespan + CI
+
+### Что сделано
+- Введена единая server-side аутентификация для admin/ops API через dependency:
+  - новый модуль `app/api/deps.py`,
+  - функция `require_admin_api_token`.
+- Добавлен новый конфиг:
+  - `ADMIN_API_TOKEN`,
+  - совместимость с legacy токеном сохранена: если `ADMIN_API_TOKEN` пуст, используется `WEBHOOK_ADMIN_TOKEN`.
+- Подключена unified auth к ключевым admin/ops endpoint-ам:
+  - `/api/queue/*`,
+  - `/api/moderation/*`,
+  - `POST /api/llm/presets/{preset_name}`,
+  - `/bot/webhook/info|set|delete`.
+- Обновлены bot handlers (`admin.py`, `ops.py`) для передачи `X-Admin-Api-Token`
+  в вызовы admin/ops API (с fallback на legacy токен).
+- Выполнена миграция lifecycle FastAPI с deprecated `@app.on_event(...)` на `lifespan`:
+  - startup: `ensure_bot_commands`, `sync_webhook_mode`, запуск scheduler,
+  - shutdown: `close_bot_session`, shutdown scheduler.
+- Добавлен CI workflow GitHub Actions:
+  - `.github/workflows/ci.yml`,
+  - шаги: установка зависимостей, `pytest -q`,
+    smoke-check импортов и `alembic upgrade head --sql`.
+
+### Измененные файлы (ключевые)
+- `app/api/deps.py`
+- `app/api/routers/bot_webhook.py`
+- `app/api/routers/queue_admin.py`
+- `app/api/routers/moderation.py`
+- `app/api/routers/llm.py`
+- `bot/handlers/admin.py`
+- `bot/handlers/ops.py`
+- `app/main.py`
+- `core/config.py`
+- `.env.example`
+- `.github/workflows/ci.yml`
+- `tests/api/test_bot_webhook.py`
+- `tests/api/test_admin_api_token_deps.py`
+- `tests/services/test_queue_reliability.py`
+- `tests/bot/test_admin_handler_helpers.py`
+- `tests/bot/test_ops_handler_helpers.py`
+- `docs/API_REFERENCE.md`
+- `docs/BOT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/TESTING.md`
+- `docs/ITERATIONS_LOG.md`
+- `README.md`
+
+### Тесты и проверки
+- Добавлен `tests/api/test_admin_api_token_deps.py`:
+  - `401` при неверном `X-Admin-Api-Token` для queue/moderation/preset admin endpoint-ов,
+  - fallback на legacy `WEBHOOK_ADMIN_TOKEN`.
+- Обновлен `tests/api/test_bot_webhook.py`:
+  - webhook management использует `X-Admin-Api-Token`,
+  - проверка `401 Invalid admin api token`.
+- Обновлены helper-тесты bot handlers (`admin`/`ops`) под unified headers.
+- Обновлен `tests/services/test_queue_reliability.py` под auth dependency.
+- Полный прогон тестов и smoke-check выполняется после pre-test commit в рамках итерации.
+
+### Ограничения на текущем шаге
+- Unified admin auth пока token-based без ротации/TTL и без многоуровневой ролевой модели.
+- Часть endpoint-ов (`/api/llm/tasks`, `/api/publications`) остаются editor-facing и не защищаются `ADMIN_API_TOKEN`.
