@@ -65,7 +65,9 @@
      - autosync disabled,
      - webhook set при `TELEGRAM_USE_WEBHOOK=true`,
      - webhook delete при polling mode,
-     - skip при пустом `TELEGRAM_WEBHOOK_URL`.
+     - skip при пустом `TELEGRAM_WEBHOOK_URL`,
+     - idempotent skip если webhook уже установлен с тем же URL (`already_set`),
+     - idempotent skip если webhook уже отсутствует (`already_deleted`).
 18. Webhook/Admin operations API auth:
    - доступ к admin endpoint-ам API защищен заголовком `X-Admin-Api-Token`
      (если задан `ADMIN_API_TOKEN`),

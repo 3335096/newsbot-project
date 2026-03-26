@@ -161,6 +161,14 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
 - `TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP=false`:
   - авто-синхронизация отключена, режим управляется вручную через `/bot/webhook/set|delete`.
 
+### Idempotent webhook autosync (Iteration 23)
+
+- На startup перед set/delete выполняется pre-check `getWebhookInfo`:
+  - если включен webhook mode и текущий `webhook_info.url` уже равен `TELEGRAM_WEBHOOK_URL`
+    (и `TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET=false`) — выполняется `skip` без вызова `setWebhook`;
+  - если включен polling mode и `webhook_info.url` уже пуст — выполняется `skip` без вызова `deleteWebhook`.
+- Это уменьшает лишние вызовы Telegram Bot API и снижает шум в логах/операциях.
+
 ### Unified admin API auth (Iteration 21)
 
 - Введен единый заголовок админ-доступа:

@@ -28,6 +28,7 @@ def test_sync_webhook_mode_sets_webhook_when_enabled() -> None:
     original_drop_on_set = runtime.settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET
     original_set_webhook = runtime.set_webhook
     original_delete_webhook = runtime.delete_webhook
+    original_get_webhook_info = runtime.get_webhook_info
 
     calls: dict[str, object] = {}
     try:
@@ -46,8 +47,16 @@ def test_sync_webhook_mode_sets_webhook_when_enabled() -> None:
             calls["secret_token"] = secret_token
             return True
 
+        async def _fake_get_webhook_info():
+            return runtime.WebhookInfo(
+                url="",
+                has_custom_certificate=False,
+                pending_update_count=0,
+            )
+
         runtime.delete_webhook = _fake_delete_webhook
         runtime.set_webhook = _fake_set_webhook
+        runtime.get_webhook_info = _fake_get_webhook_info
 
         result = asyncio.run(runtime.sync_webhook_mode())
         assert result["action"] == "set"
@@ -63,6 +72,7 @@ def test_sync_webhook_mode_sets_webhook_when_enabled() -> None:
         runtime.settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET = original_drop_on_set
         runtime.set_webhook = original_set_webhook
         runtime.delete_webhook = original_delete_webhook
+        runtime.get_webhook_info = original_get_webhook_info
 
 
 def test_sync_webhook_mode_deletes_when_polling_enabled() -> None:
@@ -70,6 +80,7 @@ def test_sync_webhook_mode_deletes_when_polling_enabled() -> None:
     original_use_webhook = runtime.settings.TELEGRAM_USE_WEBHOOK
     original_drop_on_disable = runtime.settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE
     original_delete_webhook = runtime.delete_webhook
+    original_get_webhook_info = runtime.get_webhook_info
 
     calls: dict[str, object] = {}
     try:
@@ -81,7 +92,15 @@ def test_sync_webhook_mode_deletes_when_polling_enabled() -> None:
             calls["delete_drop"] = drop_pending_updates
             return True
 
+        async def _fake_get_webhook_info():
+            return runtime.WebhookInfo(
+                url="https://example.com/bot/webhook",
+                has_custom_certificate=False,
+                pending_update_count=0,
+            )
+
         runtime.delete_webhook = _fake_delete_webhook
+        runtime.get_webhook_info = _fake_get_webhook_info
         result = asyncio.run(runtime.sync_webhook_mode())
         assert result["action"] == "deleted"
         assert calls["delete_drop"] is True
@@ -90,6 +109,7 @@ def test_sync_webhook_mode_deletes_when_polling_enabled() -> None:
         runtime.settings.TELEGRAM_USE_WEBHOOK = original_use_webhook
         runtime.settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_DISABLE = original_drop_on_disable
         runtime.delete_webhook = original_delete_webhook
+        runtime.get_webhook_info = original_get_webhook_info
 
 
 def test_sync_webhook_mode_skips_when_url_missing() -> None:
@@ -107,3 +127,87 @@ def test_sync_webhook_mode_skips_when_url_missing() -> None:
         runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP = original_autosync
         runtime.settings.TELEGRAM_USE_WEBHOOK = original_use_webhook
         runtime.settings.TELEGRAM_WEBHOOK_URL = original_url
+
+
+def test_sync_webhook_mode_skips_when_webhook_already_set() -> None:
+    original_autosync = runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP
+    original_use_webhook = runtime.settings.TELEGRAM_USE_WEBHOOK
+    original_url = runtime.settings.TELEGRAM_WEBHOOK_URL
+    original_drop_on_set = runtime.settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET
+    original_get_webhook_info = runtime.get_webhook_info
+    original_set_webhook = runtime.set_webhook
+    original_delete_webhook = runtime.delete_webhook
+    calls: dict[str, int] = {"set": 0, "delete": 0}
+    try:
+        runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP = True
+        runtime.settings.TELEGRAM_USE_WEBHOOK = True
+        runtime.settings.TELEGRAM_WEBHOOK_URL = "https://example.com/bot/webhook"
+        runtime.settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET = False
+
+        async def _fake_get_webhook_info():
+            return runtime.WebhookInfo(
+                url="https://example.com/bot/webhook",
+                has_custom_certificate=False,
+                pending_update_count=0,
+            )
+
+        async def _fake_set_webhook(url: str, secret_token: str | None = None) -> bool:
+            calls["set"] += 1
+            return True
+
+        async def _fake_delete_webhook(drop_pending_updates: bool = False) -> bool:
+            calls["delete"] += 1
+            return True
+
+        runtime.get_webhook_info = _fake_get_webhook_info
+        runtime.set_webhook = _fake_set_webhook
+        runtime.delete_webhook = _fake_delete_webhook
+
+        result = asyncio.run(runtime.sync_webhook_mode())
+        assert result["action"] == "skipped"
+        assert result["reason"] == "already_set"
+        assert calls["set"] == 0
+        assert calls["delete"] == 0
+    finally:
+        runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP = original_autosync
+        runtime.settings.TELEGRAM_USE_WEBHOOK = original_use_webhook
+        runtime.settings.TELEGRAM_WEBHOOK_URL = original_url
+        runtime.settings.TELEGRAM_WEBHOOK_DROP_PENDING_ON_SET = original_drop_on_set
+        runtime.get_webhook_info = original_get_webhook_info
+        runtime.set_webhook = original_set_webhook
+        runtime.delete_webhook = original_delete_webhook
+
+
+def test_sync_webhook_mode_skips_when_webhook_already_deleted() -> None:
+    original_autosync = runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP
+    original_use_webhook = runtime.settings.TELEGRAM_USE_WEBHOOK
+    original_get_webhook_info = runtime.get_webhook_info
+    original_delete_webhook = runtime.delete_webhook
+    calls = {"delete": 0}
+    try:
+        runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP = True
+        runtime.settings.TELEGRAM_USE_WEBHOOK = False
+
+        async def _fake_get_webhook_info():
+            return runtime.WebhookInfo(
+                url="",
+                has_custom_certificate=False,
+                pending_update_count=0,
+            )
+
+        async def _fake_delete_webhook(drop_pending_updates: bool = False) -> bool:
+            calls["delete"] += 1
+            return True
+
+        runtime.get_webhook_info = _fake_get_webhook_info
+        runtime.delete_webhook = _fake_delete_webhook
+
+        result = asyncio.run(runtime.sync_webhook_mode())
+        assert result["action"] == "skipped"
+        assert result["reason"] == "already_deleted"
+        assert calls["delete"] == 0
+    finally:
+        runtime.settings.TELEGRAM_WEBHOOK_AUTOSYNC_ON_STARTUP = original_autosync
+        runtime.settings.TELEGRAM_USE_WEBHOOK = original_use_webhook
+        runtime.get_webhook_info = original_get_webhook_info
+        runtime.delete_webhook = original_delete_webhook
