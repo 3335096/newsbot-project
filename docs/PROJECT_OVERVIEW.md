@@ -15,10 +15,9 @@ MVP ориентирован на работу через Telegram-бота бе
 
 ## Текущий статус по итерациям
 
-- Итер. 1: выполнена.
-- Итер. 2: выполнена.
-- Итер. 3: выполнена.
-- Итер. 4: выполнена.
+Текущая реализация соответствует итерациям **1–26** (включая очередь задач,
+операционные API, webhook mode, security hardening admin auth, CI quality gates,
+и cleanup техдолга по консистентности docs/settings flow).
 
 Детали см. в `docs/ITERATIONS_LOG.md`.
 
@@ -33,11 +32,12 @@ MVP ориентирован на работу через Telegram-бота бе
 Основные компоненты:
 
 - **API (FastAPI)** — публичные и внутренние эндпоинты для бота/админа.
-- **Scheduler (APScheduler)** — плановый парсинг источников.
+- **Scheduler (APScheduler)** — плановый парсинг источников, enqueue due-публикаций, cleanup.
 - **ParserService** — сбор RSS/HTML, извлечение контента, хеширование, дедуп.
 - **TranslationService** — перевод через OpenRouter + кэш переводов.
-- **LLMTaskService** — запуск задач summary/rewrite/title_hashtags.
+- **LLMTaskService** — постановка/выполнение задач summary/rewrite/title_hashtags через queue worker.
 - **Bot (aiogram)** — интерфейс редактора/админа.
+- **Redis + RQ Worker** — асинхронное выполнение LLM и publication jobs, retry/requeue.
 - **PostgreSQL** — хранение сущностей и служебных данных.
 
 ## Основные сущности БД
@@ -60,11 +60,17 @@ MVP ориентирован на работу через Telegram-бота бе
 - Автоперевод новых материалов в целевой язык источника.
 - Создание и отображение черновиков в боте.
 - Переключение карточки черновика между оригиналом и переводом.
-- LLM-задачи из карточки: Summary / Rewrite style / Title+Hashtags.
-- Управление LLM-пресетами через API и админ-панель бота.
+- LLM-задачи из карточки: Summary / Rewrite style / Title+Hashtags (асинхронно через очередь).
+- Публикации в каналы Telegram (queued/scheduled) с worker-обработкой и retry.
+- Управление источниками, moderation rules, presets и webhook ops через API и bot admin/ops.
+- Мониторинг и эксплуатация:
+  - `/metrics`, `/health`, `/health/ready`,
+  - `/api/queue/stats`, `/api/queue/failed`, manual requeue.
 
 ## Ограничения текущего этапа
 
-- Действия LLM выполняются синхронно в рамках API-запроса (без отдельной очереди воркеров).
-- Модерация и публикация присутствуют как каркас и требуют расширения в следующих итерациях.
-- Основной production-диалект БД — PostgreSQL; SQLite используется как тестовый/смоук-контур.
+- Основной production-диалект БД — PostgreSQL; SQLite используется как тестовый/smoke-контур.
+- `users` settings API использует query-параметр `actor_user_id` для проверки прав
+  (бот передает его автоматически).
+- Часть проектной документации поддерживается инкрементально, source-of-truth по
+  поведению — код и актуальные тесты.

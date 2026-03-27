@@ -15,9 +15,14 @@
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "worker_alive": true
 }
 ```
+
+`status` может быть:
+- `ok` — worker heartbeat актуален;
+- `degraded` — API запущен, но worker heartbeat неактуален.
 
 ### `GET /health/ready`
 
@@ -155,9 +160,15 @@ Prometheus-метрики приложения в формате `text/plain; ve
 ### `POST /api/llm/tasks/{task_id}/retry`
 
 Повторная постановка завершенной (`success`) или ошибочной (`error`) задачи в очередь.
+Endpoint сбрасывает `result/error`, переводит задачу в `queued` и ставит новую queue-job.
 
-Если у задачи есть `queue_job_id`, endpoint сначала пытается requeue существующего failed/stopped/canceled job.
-Если requeue невозможен — задача ставится заново обычным enqueue.
+### `POST /api/llm/tasks/{task_id}/requeue`
+
+Операторский requeue для `error` задачи через существующий `queue_job_id`.
+
+Отличие от `retry`:
+- `retry` всегда создает новый enqueue;
+- `requeue` пытается переиспользовать существующий failed/stopped/canceled job.
 
 ---
 
@@ -175,8 +186,11 @@ Prometheus-метрики приложения в формате `text/plain; ve
 
 Повторная постановка публикации в очередь (для `error`/`queued`/`scheduled`).
 
-Если у публикации есть `queue_job_id`, endpoint сначала пытается requeue существующего failed/stopped/canceled job.
-Если requeue невозможен — публикация ставится заново обычным enqueue.
+Endpoint переenqueue-ит публикацию (по флагу `force`) через стандартный dispatcher flow.
+
+### `POST /api/publications/{publication_id}/requeue-failed`
+
+Операторский сценарий для повторной постановки публикации в статусе `error` из failed-контекста.
 
 ---
 
@@ -205,6 +219,23 @@ Prometheus-метрики приложения в формате `text/plain; ve
 2. Проверяется оригинальный job `job_id`.
 3. Выполняется requeue оригинального job.
 4. Marker удаляется из failed queue.
+
+### `GET /api/queue/failed`
+
+Список marker jobs в failed queue для UI/оператора.
+
+Параметры:
+- `limit` (query, default `20`, max `100`)
+
+Ответ (пример):
+```json
+[
+  {
+    "marker_job_id": "failed_xxx",
+    "original_job_id": "xxx"
+  }
+]
+```
 
 ---
 
@@ -260,6 +291,37 @@ Prometheus-метрики приложения в формате `text/plain; ve
 - `drafts_created`
 
 Если источник выключен — `409`.
+
+---
+
+## Пользовательские настройки (`/api/users`)
+
+### `GET /api/users/{telegram_user_id}/settings`
+
+Получение user settings.
+
+Query-параметры:
+- `actor_user_id` (обязателен; кто выполняет действие)
+
+Правила доступа:
+- пользователь может читать свои настройки;
+- admin может читать настройки других пользователей;
+- иначе `403`.
+
+### `POST /api/users/{telegram_user_id}/settings`
+
+Обновление user settings.
+
+Query-параметры:
+- `actor_user_id` (обязателен; кто выполняет действие)
+
+Тело запроса (любая комбинация полей):
+```json
+{
+  "default_target_language": "ru",
+  "enable_images": true
+}
+```
 
 ---
 

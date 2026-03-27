@@ -47,10 +47,6 @@ async def lifespan(app: FastAPI):
     except Exception:
         # Logging should never break startup.
         pass
-    try:
-        logger.info("Webhook autosync result: {}", sync_result)
-    except Exception as exc:
-        logger.exception("Webhook autosync log failed: {}", exc)
     scheduler.start()
     scheduler.load_scheduled_jobs()
     try:
