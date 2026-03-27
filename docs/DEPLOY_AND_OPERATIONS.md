@@ -115,7 +115,6 @@ curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
   - `POST /api/queue/failed/{job_id}/requeue` (admin token)
 - Дополнительные health endpoints:
   - `GET /health/ready`
-  - `GET /health/live`
 - При фатальных ошибках job marker добавляется в `failed` queue для операционного requeue.
 
 ### Что мониторить в первую очередь

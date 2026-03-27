@@ -169,8 +169,8 @@ Flow:
 
 Хранение:
 - настройки сохраняются в профиле пользователя (`users.settings`) через API:
-  - `GET /api/users/{telegram_user_id}/settings`
-  - `POST /api/users/{telegram_user_id}/settings`
+  - `GET /api/users/{telegram_user_id}/settings?actor_user_id=<telegram_user_id>`
+  - `POST /api/users/{telegram_user_id}/settings?actor_user_id=<telegram_user_id>`
 
 ## 11. Операторские действия по failed jobs (Iteration 16)
 

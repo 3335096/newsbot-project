@@ -15,8 +15,9 @@ MVP ориентирован на работу через Telegram-бота бе
 
 ## Текущий статус по итерациям
 
-Текущая реализация соответствует итерациям **1–25** (включая очередь задач,
-операционные API, webhook mode, security hardening admin auth, CI quality gates).
+Текущая реализация соответствует итерациям **1–26** (включая очередь задач,
+операционные API, webhook mode, security hardening admin auth, CI quality gates,
+и cleanup техдолга по консистентности docs/settings flow).
 
 Детали см. в `docs/ITERATIONS_LOG.md`.
 
