@@ -28,6 +28,24 @@
 - Нормализует значения `articles_draft.status`.
 - Добавляет check-constraint для допустимых статусов.
 
+### `20260325_0003_publication_status_and_uniques`
+- Нормализует статусы `publications`.
+- Добавляет ограничения корректности статусов публикаций.
+- Добавляет уникальность `(draft_id, channel_id)` для идемпотентности публикаций.
+
+### `20260325_0004_moderation_status_constraints`
+- Нормализует значения `moderation_rules.kind` и `moderation_rules.action`.
+- Добавляет check-constraints на допустимые значения модерационных правил.
+
+### `20260325_0005_async_queue_statuses`
+- Добавляет поля/ограничения для async queue-контура:
+  - `queue_job_id` в `llm_tasks` и `publications`,
+  - `channel_alias` в `publications`,
+  - нормализация статусов:
+    - `llm_tasks.status IN ('queued','running','success','error')`,
+    - `publications.status IN ('queued','running','scheduled','success','error')`,
+  - уникальность `queue_job_id`.
+
 ## 3. Запуск миграций
 
 Обычный запуск:
@@ -45,6 +63,6 @@ alembic upgrade head --sql
 ## 4. Важные замечания
 
 - Основная целевая БД: PostgreSQL.
-- Для smoke-check в SQLite в миграции `20260325_0002` предусмотрена совместимая ветка.
+- Для smoke-check в SQLite часть миграций содержит совместимые/упрощенные ветки.
 - Рекомендуется применять миграции только через Alembic, а `scripts/init_db.py` использовать как fallback для локальной инициализации.
 

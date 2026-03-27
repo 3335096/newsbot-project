@@ -49,9 +49,16 @@ def _settings_text(payload: dict) -> str:
     )
 
 
+def _settings_request_params(actor_user_id: int) -> dict[str, int]:
+    return {"actor_user_id": actor_user_id}
+
+
 async def _fetch_user_settings(telegram_user_id: int) -> tuple[int, dict]:
     async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{settings.APP_BASE_URL}/api/users/{telegram_user_id}/settings")
+        resp = await client.get(
+            f"{settings.APP_BASE_URL}/api/users/{telegram_user_id}/settings",
+            params=_settings_request_params(telegram_user_id),
+        )
         return resp.status_code, (resp.json() if resp.status_code == 200 else {"detail": resp.text})
 
 
@@ -91,6 +98,7 @@ async def settings_toggle_images(callback: CallbackQuery):
         resp = await client.post(
             f"{settings.APP_BASE_URL}/api/users/{callback.from_user.id}/settings",
             json={"enable_images": not current},
+            params=_settings_request_params(callback.from_user.id),
         )
         if resp.status_code != 200:
             await callback.message.answer(f"Не удалось обновить настройки: {resp.text}")
@@ -132,6 +140,7 @@ async def settings_edit_default_lang_finish(message: types.Message, state: FSMCo
         resp = await client.post(
             f"{settings.APP_BASE_URL}/api/users/{message.from_user.id}/settings",
             json={"default_target_language": lang},
+            params=_settings_request_params(message.from_user.id),
         )
         if resp.status_code != 200:
             await message.answer(f"Не удалось обновить настройки: {resp.text}")

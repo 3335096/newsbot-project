@@ -28,3 +28,8 @@ def test_settings_text_renders_core_values() -> None:
     text = settings._settings_text(payload)
     assert "default_target_language: ru" in text
     assert "enable_images: True" in text
+
+
+def test_settings_request_params_include_actor_user_id() -> None:
+    params = settings._settings_request_params(12345)
+    assert params == {"actor_user_id": 12345}
