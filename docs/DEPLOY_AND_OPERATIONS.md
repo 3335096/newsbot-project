@@ -34,6 +34,44 @@
 5. Запустите worker:
    - `python -m worker`
 
+## 2.1. Railway deployment (рекомендуемая схема)
+
+Для Railway удобнее запускать проект как отдельные сервисы:
+- `api` (web service),
+- `worker` (background service),
+- `redis` (Railway Redis plugin),
+- `postgres` (Railway Postgres plugin).
+
+В репозитории добавлен `nixpacks.toml` с универсальным build/run для `api`:
+- install: `python -m pip install -r requirements.txt`
+- start: `bash scripts/start_api.sh`
+
+`scripts/start_api.sh`:
+- применяет миграции через `python -m alembic upgrade head`,
+- при ошибке миграций делает fallback `python scripts/init_db.py`,
+- запускает API через `python -m uvicorn ... --port $PORT`.
+
+Это решает типичные ошибки Railway вида:
+- `alembic: command not found`,
+- `uvicorn: command not found`,
+- путь `/app/scripts/init_db.py` не найден.
+
+### Важные env переменные для Railway
+- `DATABASE_URL` (из Railway Postgres; SQLAlchemy ожидает схему `postgresql://` / `postgresql+psycopg2://`)
+- `REDIS_URL` (из Railway Redis)
+- `TELEGRAM_BOT_TOKEN`
+- `ADMIN_API_TOKEN`
+- `TELEGRAM_USE_WEBHOOK=true` (если используете webhook)
+- `TELEGRAM_WEBHOOK_URL=https://<railway-api-domain>/bot/webhook`
+- `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
+
+### Worker service command в Railway
+Для worker-сервиса используйте:
+
+```bash
+python -m worker
+```
+
 ## 3. Проверка после деплоя (smoke-check)
 
 - Импорт API:
