@@ -42,14 +42,30 @@
 - `redis` (Railway Redis plugin),
 - `postgres` (Railway Postgres plugin).
 
-В репозитории добавлен `nixpacks.toml` с универсальным build/run для `api`:
+В репозитории добавлены:
+- `railway.toml` (config-as-code override для Railway),
+- `nixpacks.toml` (fallback для Railpack/Nixpacks),
+- `scripts/railway_start.sh` (универсальный start entrypoint),
+- `scripts/start_api.sh` (api startup sequence).
+
+Ключевая идея: даже если в UI Railway остались старые команды, config-as-code
+из репозитория должен переопределить deploy start command.
+
+Для `api` start flow:
 - install: `python -m pip install -r requirements.txt`
-- start: `bash scripts/start_api.sh`
+- start: `bash scripts/railway_start.sh` -> `bash scripts/start_api.sh`
 
 `scripts/start_api.sh`:
 - применяет миграции через `python -m alembic upgrade head`,
 - при ошибке миграций делает fallback `python scripts/init_db.py`,
 - запускает API через `python -m uvicorn ... --port $PORT`.
+
+`scripts/railway_start.sh`:
+- определяет роль сервиса (`api`/`worker`/`bot`) через
+  `APP_ROLE` (приоритетно) или `RAILWAY_SERVICE_NAME`,
+- для `api` запускает `scripts/start_api.sh`,
+- для `worker` запускает `python -m worker`,
+- для `bot` запускает `python -m bot.main`.
 
 Это решает типичные ошибки Railway вида:
 - `alembic: command not found`,
@@ -66,7 +82,12 @@
 - `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
 
 ### Worker service command в Railway
-Для worker-сервиса используйте:
+Рекомендуемый вариант:
+- `APP_ROLE=worker` в переменных worker-сервиса;
+- start command берется из `railway.toml`/`nixpacks.toml` и автоматически
+  вызывает `python -m worker`.
+
+Если нужно задать вручную, используйте:
 
 ```bash
 python -m worker
