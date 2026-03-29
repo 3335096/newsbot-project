@@ -10,12 +10,13 @@ raw_role="${APP_ROLE:-${RAILWAY_SERVICE_NAME:-api}}"
 role="$(printf "%s" "${raw_role}" | tr '[:upper:]' '[:lower:]')"
 
 # Railway service names are often not exactly "api"/"worker"/"bot"
-# (e.g. "newsbot-worker", "api-web"). Map common patterns.
-if [[ "${role}" == *worker* ]]; then
+# (e.g. "newsbot-worker", "api-web"). Match by token boundaries to avoid
+# false positives like "newsbot-project" -> "bot".
+if [[ "${role}" =~ (^|[^a-z0-9])worker([^a-z0-9]|$) ]]; then
   role="worker"
-elif [[ "${role}" == *bot* ]]; then
+elif [[ "${role}" =~ (^|[^a-z0-9])bot([^a-z0-9]|$) ]]; then
   role="bot"
-elif [[ "${role}" == *api* || "${role}" == *web* ]]; then
+elif [[ "${role}" =~ (^|[^a-z0-9])(api|web)([^a-z0-9]|$) ]]; then
   role="api"
 fi
 
