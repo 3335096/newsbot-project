@@ -36,62 +36,21 @@
 
 ## 2.1. Railway deployment (рекомендуемая схема)
 
-Для Railway удобнее запускать проект как отдельные сервисы:
-- `api` (web service),
-- `worker` (background service),
-- `redis` (Railway Redis plugin),
-- `postgres` (Railway Postgres plugin).
+Полный пошаговый гайд находится в отдельном документе:
+- `docs/RAILWAY_DEPLOYMENT_GUIDE.md`
 
-В репозитории добавлены:
-- `railway.toml` (config-as-code override для Railway),
-- `nixpacks.toml` (fallback для Railpack/Nixpacks),
-- `scripts/railway_start.sh` (универсальный start entrypoint),
-- `scripts/start_api.sh` (api startup sequence).
+Кратко:
+- рекомендуемый production-режим: `api` + `worker` + Railway Postgres + Railway Redis;
+- для webhook-режима отдельный polling-сервис `bot` не требуется;
+- во всех сервисах задавайте явный `APP_ROLE` (`api`/`worker`/`bot`);
+- start command берется из репозитория: `bash scripts/railway_start.sh`;
+- в `core/config.py` добавлена нормализация `DATABASE_URL` (`postgres://` -> `postgresql://`) для совместимости с Railway.
 
-Ключевая идея: даже если в UI Railway остались старые команды, config-as-code
-из репозитория должен переопределить deploy start command.
-
-Для `api` start flow:
-- install: `python -m pip install -r requirements.txt`
-- start: `bash scripts/railway_start.sh` -> `bash scripts/start_api.sh`
-
-`scripts/start_api.sh`:
-- применяет миграции через `python -m alembic upgrade head`,
-- при ошибке миграций делает fallback `python scripts/init_db.py`,
-- запускает API через `python -m uvicorn ... --port $PORT`.
-
-`scripts/railway_start.sh`:
-- определяет роль сервиса (`api`/`worker`/`bot`) через
-  `APP_ROLE` (приоритетно) или `RAILWAY_SERVICE_NAME`,
-- для `api` запускает `scripts/start_api.sh`,
-- для `worker` запускает `python -m worker`,
-- для `bot` запускает `python -m bot.main`.
-
-Это решает типичные ошибки Railway вида:
-- `alembic: command not found`,
-- `uvicorn: command not found`,
-- путь `/app/scripts/init_db.py` не найден.
-
-### Важные env переменные для Railway
-- `DATABASE_URL` (из Railway Postgres; SQLAlchemy ожидает схему `postgresql://` / `postgresql+psycopg2://`)
-- `REDIS_URL` (из Railway Redis)
-- `TELEGRAM_BOT_TOKEN`
-- `ADMIN_API_TOKEN`
-- `TELEGRAM_USE_WEBHOOK=true` (если используете webhook)
-- `TELEGRAM_WEBHOOK_URL=https://<railway-api-domain>/bot/webhook`
-- `TELEGRAM_WEBHOOK_SECRET=<strong-random-token>`
-
-### Worker service command в Railway
-Рекомендуемый вариант:
-- `APP_ROLE=worker` в переменных worker-сервиса;
-- start command берется из `railway.toml`/`nixpacks.toml` и автоматически
-  вызывает `python -m worker`.
-
-Если нужно задать вручную, используйте:
-
-```bash
-python -m worker
-```
+Связанные файлы:
+- `railway.toml`
+- `nixpacks.toml`
+- `scripts/railway_start.sh`
+- `scripts/start_api.sh`
 
 ## 3. Проверка после деплоя (smoke-check)
 

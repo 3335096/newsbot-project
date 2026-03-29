@@ -1,6 +1,7 @@
 import json
 from typing import Dict, List, Set
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -45,6 +46,25 @@ class Settings(BaseSettings):
     ENABLE_IMAGES: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip()
+        if normalized.startswith("postgres://"):
+            # Railway/Postgres providers may expose postgres:// URLs.
+            # SQLAlchemy expects postgresql:// scheme.
+            return "postgresql://" + normalized[len("postgres://") :]
+        return normalized
+
+    @field_validator("REDIS_URL", mode="before")
+    @classmethod
+    def _normalize_redis_url(cls, value: str) -> str:
+        if not isinstance(value, str):
+            return value
+        return value.strip()
 
     @property
     def admin_ids(self) -> List[int]:
