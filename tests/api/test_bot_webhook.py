@@ -215,6 +215,24 @@ def test_webhook_admin_endpoints_reject_invalid_token() -> None:
     assert response.json()["detail"] == "Invalid admin api token"
 
 
+def test_webhook_info_returns_502_when_runtime_call_fails() -> None:
+    client = TestClient(app)
+    original_get_webhook_info = bot_webhook_router.get_webhook_info
+    try:
+        async def _failing_get_webhook_info():
+            raise RuntimeError("telegram api down")
+
+        bot_webhook_router.get_webhook_info = _failing_get_webhook_info
+        response = client.get(
+            "/bot/webhook/info",
+            headers={"X-Admin-Api-Token": "ops-token"},
+        )
+        assert response.status_code == 502
+        assert "Failed to fetch webhook info" in response.json()["detail"]
+    finally:
+        bot_webhook_router.get_webhook_info = original_get_webhook_info
+
+
 def test_webhook_returns_ignored_for_invalid_payload() -> None:
     client = TestClient(app)
     response = client.post(

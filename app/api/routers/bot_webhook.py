@@ -64,7 +64,11 @@ async def bot_webhook(
 async def bot_webhook_info(
     _: None = Depends(require_admin_api_token),
 ):
-    info = await get_webhook_info()
+    try:
+        info = await get_webhook_info()
+    except Exception as exc:
+        logger.exception("Failed to fetch Telegram webhook info: {}", exc)
+        raise HTTPException(status_code=502, detail=f"Failed to fetch webhook info: {exc}") from exc
     return info.model_dump()
 
 
