@@ -1,8 +1,9 @@
 [variables]
 PYTHONUNBUFFERED = "1"
+NIXPACKS_PYTHON_VERSION = "3.12"
 
 [phases.setup]
-nixPkgs = ["python313", "gcc", "libffi", "openssl"]
+nixPkgs = ["python312", "gcc", "libffi", "openssl"]
 
 [phases.install]
 cmds = ["python -m pip install --upgrade pip", "python -m pip install -r requirements.txt"]
