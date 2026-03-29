@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 from aiogram.types import Update
+from loguru import logger
 
 from app.api.deps import require_admin_api_token
 from bot.runtime import (
@@ -39,11 +40,23 @@ async def bot_webhook(
         if x_telegram_bot_api_secret_token != expected_secret:
             raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
-    payload = await request.json()
-    update = Update.model_validate(payload)
-    bot = get_bot()
-    dp = get_dispatcher()
-    await dp.feed_update(bot, update)
+    try:
+        payload = await request.json()
+        update = Update.model_validate(payload)
+    except Exception as exc:
+        logger.exception("Failed to parse Telegram webhook update: {}", exc)
+        # Always return 200 for malformed updates to avoid endless Telegram retries.
+        return {"status": "ignored"}
+
+    try:
+        bot = get_bot()
+        dp = get_dispatcher()
+        await dp.feed_update(bot, update)
+    except Exception as exc:
+        logger.exception("Failed to process Telegram webhook update: {}", exc)
+        # Return 200 and log the root cause; Telegram retries can otherwise amplify failures.
+        return {"status": "failed"}
+
     return {"status": "ok"}
 
 

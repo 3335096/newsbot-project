@@ -213,3 +213,38 @@ def test_webhook_admin_endpoints_reject_invalid_token() -> None:
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid admin api token"
+
+
+def test_webhook_returns_ignored_for_invalid_payload() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/bot/webhook",
+        json={"invalid": "payload"},
+        headers={"X-Telegram-Bot-Api-Secret-Token": "secret-token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ignored"
+
+
+def test_webhook_returns_failed_when_dispatcher_raises() -> None:
+    client = TestClient(app)
+
+    class _FailingDispatcher:
+        async def feed_update(self, bot, update) -> None:
+            raise RuntimeError("boom")
+
+    original_get_dispatcher = bot_webhook_router.get_dispatcher
+    original_get_bot = bot_webhook_router.get_bot
+    try:
+        bot_webhook_router.get_dispatcher = lambda: _FailingDispatcher()
+        bot_webhook_router.get_bot = lambda: None
+        response = client.post(
+            "/bot/webhook",
+            json=_minimal_update_payload(),
+            headers={"X-Telegram-Bot-Api-Secret-Token": "secret-token"},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "failed"
+    finally:
+        bot_webhook_router.get_dispatcher = original_get_dispatcher
+        bot_webhook_router.get_bot = original_get_bot
