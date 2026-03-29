@@ -248,3 +248,14 @@ def test_webhook_returns_failed_when_dispatcher_raises() -> None:
     finally:
         bot_webhook_router.get_dispatcher = original_get_dispatcher
         bot_webhook_router.get_bot = original_get_bot
+
+
+def test_app_base_url_normalization_adds_scheme_when_missing() -> None:
+    from core.config import Settings
+
+    cfg = Settings(
+        DATABASE_URL="sqlite:///:memory:",
+        TELEGRAM_BOT_TOKEN="test-token",
+        APP_BASE_URL="api-production-435e.up.railway.app/",
+    )
+    assert cfg.APP_BASE_URL == "https://api-production-435e.up.railway.app"

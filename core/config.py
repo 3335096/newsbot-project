@@ -59,6 +59,19 @@ class Settings(BaseSettings):
             return "postgresql://" + normalized[len("postgres://") :]
         return normalized
 
+    @field_validator("APP_BASE_URL", mode="before")
+    @classmethod
+    def _normalize_app_base_url(cls, value: str) -> str:
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip().rstrip("/")
+        if not normalized:
+            return normalized
+        if normalized.startswith("http://") or normalized.startswith("https://"):
+            return normalized
+        # Railway users often paste hostnames without a scheme.
+        return f"https://{normalized}"
+
     @field_validator("REDIS_URL", mode="before")
     @classmethod
     def _normalize_redis_url(cls, value: str) -> str:
