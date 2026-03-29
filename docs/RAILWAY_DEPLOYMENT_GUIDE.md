@@ -143,6 +143,12 @@ curl -H "X-Admin-Api-Token: <ADMIN_API_TOKEN>" \
 
 ## 8) Частые ошибки и быстрые исправления
 
+### Ошибка: worker деплой падает с `service unavailable` / `Healthcheck failed!`
+- Причина: для worker-сервиса Railway пытается делать HTTP healthcheck, но worker не поднимает web endpoint.
+- Исправление:
+  1. Для worker в Railway UI отключите HTTP healthcheck (или оставьте healthcheck только для `api`).
+  2. В репозитории `railway.toml` убран глобальный `healthcheckPath`, чтобы не ломать background service.
+
 ### Ошибка: SQLAlchemy падает на старте с `AssertionError ... SQLCoreOperations`
 - Причина: деплой собрался на Python 3.13.
 - Исправление: использовать Python 3.12 для Railway (в репозитории это зафиксировано в `nixpacks.toml` и `.python-version`).
