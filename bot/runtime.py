@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from loguru import logger
 
 from bot.handlers import admin, drafts, ops, settings as settings_handler, sources, start
@@ -64,6 +66,28 @@ class WebhookInfo(BaseModel):
     max_connections: int | None = None
     allowed_updates: list[str] | None = None
 
+    @field_validator("last_error_date", mode="before")
+    @classmethod
+    def _coerce_last_error_date(cls, value: object | None) -> int | None:
+        return _normalize_telegram_timestamp(value)
+
+
+def _normalize_telegram_timestamp(value: object | None) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return int(value.timestamp())
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except Exception:
+        return None
+
 
 async def get_webhook_info() -> WebhookInfo:
     bot = get_bot()
@@ -73,7 +97,7 @@ async def get_webhook_info() -> WebhookInfo:
         has_custom_certificate=info.has_custom_certificate,
         pending_update_count=info.pending_update_count,
         ip_address=info.ip_address,
-        last_error_date=info.last_error_date,
+        last_error_date=_normalize_telegram_timestamp(info.last_error_date),
         last_error_message=info.last_error_message,
         max_connections=info.max_connections,
         allowed_updates=info.allowed_updates,

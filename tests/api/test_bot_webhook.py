@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import os
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -99,6 +100,34 @@ def test_webhook_info_endpoint_returns_runtime_info() -> None:
         payload = response.json()
         assert payload["url"] == "https://example.com/bot/webhook"
         assert payload["pending_update_count"] == 2
+    finally:
+        bot_webhook_router.get_webhook_info = original_get_webhook_info
+
+
+def test_webhook_info_endpoint_normalizes_datetime_error_date() -> None:
+    client = TestClient(app)
+    original_get_webhook_info = bot_webhook_router.get_webhook_info
+    try:
+        async def _fake_get_webhook_info():
+            return WebhookInfo(
+                url="https://example.com/bot/webhook",
+                has_custom_certificate=False,
+                pending_update_count=0,
+                ip_address=None,
+                last_error_date=datetime(2026, 3, 29, 18, 56, 30, tzinfo=timezone.utc),
+                last_error_message="Wrong response from the webhook: 500",
+                max_connections=40,
+                allowed_updates=None,
+            )
+
+        bot_webhook_router.get_webhook_info = _fake_get_webhook_info
+        response = client.get(
+            "/bot/webhook/info",
+            headers={"X-Admin-Api-Token": "ops-token"},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert isinstance(payload["last_error_date"], int)
     finally:
         bot_webhook_router.get_webhook_info = original_get_webhook_info
 
