@@ -8,4 +8,4 @@ nixPkgs = ["python313", "gcc", "libffi", "openssl"]
 cmds = ["python -m pip install --upgrade pip", "python -m pip install -r requirements.txt"]
 
 [start]
-cmd = "bash scripts/start_api.sh"
+cmd = "bash scripts/railway_start.sh"

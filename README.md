@@ -108,3 +108,4 @@
 - Итер. 25: CI enhancements — добавлены quality/security проверки в GitHub Actions: `ruff` (lint), `mypy` (type-check), `pip-audit` (поиск уязвимостей в зависимостях).
 - Итер. 26: tech debt cleanup — выровнена документация по реальным endpoint-контрактам, убран дублирующий startup-log webhook autosync, исправлен bot settings flow (`actor_user_id`) и добавлены тесты user settings API.
 - Итер. 27: Railway deploy hardening — добавлены `nixpacks.toml` и `scripts/start_api.sh` (запуск через `python -m ...`, поддержка `$PORT`, fallback init_db), чтобы исключить ошибки `command not found`/path mismatch при деплое API.
+- Итер. 28: Railway config-as-code hardening — добавлены `railway.toml` и `scripts/railway_start.sh` для принудительного старта из репозитория и role-based запуска (`api`/`worker`/`bot`) через `APP_ROLE`/`RAILWAY_SERVICE_NAME`.
