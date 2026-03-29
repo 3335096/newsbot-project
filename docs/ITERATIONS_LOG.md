@@ -1135,3 +1135,44 @@
 - Расширен `tests/bot/test_settings_handler_helpers.py`:
   - проверка формирования параметра `actor_user_id` в bot helper.
 - Полный прогон релевантных тестов выполняется в рамках этой итерации.
+
+---
+
+## Итерация 29 — Railway production hardening + deployment playbook
+
+### Что сделано
+- Улучшена надежность конфигурации для Railway:
+  - в `core/config.py` добавлена нормализация `DATABASE_URL` (`postgres://` -> `postgresql://`) на уровне settings, чтобы одинаково работать в API/worker/migrations.
+- Усилен role-based startup для multi-service деплоя:
+  - `scripts/railway_start.sh` теперь поддерживает pattern mapping для типичных имен сервисов (`*worker*`, `*bot*`, `*api*`, `*web*`) и сохраняет приоритет `APP_ROLE`.
+- Расширен шаблон окружения:
+  - в `.env.example` добавлены `ENV` и `APP_ROLE` для более явной конфигурации runtime роли.
+- Подготовлена отдельная подробная документация:
+  - добавлен новый файл `docs/RAILWAY_DEPLOYMENT_GUIDE.md` с пошаговым production-гайдом:
+    - схема сервисов для webhook/polling режимов,
+    - матрица env-переменных по сервисам,
+    - порядок первого деплоя,
+    - smoke checklist и troubleshooting.
+- Синхронизирована навигация документации:
+  - в `README.md` добавлена ссылка на новый Railway guide,
+  - раздел Railway в `docs/DEPLOY_AND_OPERATIONS.md` переведен на единый источник правды.
+
+### Измененные файлы (ключевые)
+- `core/config.py`
+- `scripts/railway_start.sh`
+- `.env.example`
+- `docs/RAILWAY_DEPLOYMENT_GUIDE.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `README.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Тесты и проверки
+- Выполнены таргетные тесты деплой-критичного поведения:
+  - `python3 -m pytest tests/bot/test_runtime_webhook_sync.py tests/api/test_bot_webhook.py tests/services/test_queue_reliability.py -q`
+- Выполнены smoke проверки импорта и миграций:
+  - `DATABASE_URL=sqlite:///./smoke.db TELEGRAM_BOT_TOKEN=test-token python3 -c "import app.main; print('import app.main: OK')"`
+  - `DATABASE_URL=sqlite:///./smoke.db TELEGRAM_BOT_TOKEN=test-token python3 -c "import bot.main; print('import bot.main: OK')"`
+  - `DATABASE_URL=sqlite:///./smoke.db TELEGRAM_BOT_TOKEN=test-token python3 -m alembic upgrade head --sql`
+
+### Ограничения на текущем шаге
+- `scripts/start_api.sh` сохраняет fallback `init_db.py` при неуспехе Alembic (MVP-safe поведение); в production рекомендуется разбирать причину падения миграций и не полагаться на fallback как постоянный сценарий.
