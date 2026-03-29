@@ -143,6 +143,13 @@ curl -H "X-Admin-Api-Token: <ADMIN_API_TOKEN>" \
 
 ## 8) Частые ошибки и быстрые исправления
 
+### Ошибка: SQLAlchemy падает на старте с `AssertionError ... SQLCoreOperations`
+- Причина: деплой собрался на Python 3.13.
+- Исправление: использовать Python 3.12 для Railway (в репозитории это задано в `nixpacks.toml`).
+- Действия в Railway:
+  1. Redeploy сервис `api` на свежем коммите.
+  2. В Deploy Logs проверьте, что setup использует Python 3.12.
+
 ### Ошибка: `Invalid DSN` или проблемы с `postgres://`
 - Причина: провайдер дал `postgres://`.
 - В проекте есть нормализация в конфиге, но убедитесь, что `DATABASE_URL` действительно заполнен и валиден.
