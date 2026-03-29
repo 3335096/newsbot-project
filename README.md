@@ -32,6 +32,7 @@
 - Telegram-бот (UX/команды): `docs/BOT_GUIDE.md`
 - БД и миграции: `docs/DB_AND_MIGRATIONS.md`
 - Деплой и эксплуатация: `docs/DEPLOY_AND_OPERATIONS.md`
+- Пошаговый деплой в Railway: `docs/RAILWAY_DEPLOYMENT_GUIDE.md`
 - Тестирование: `docs/TESTING.md`
 
 ## Миграции и база данных
@@ -79,7 +80,7 @@
 
 ## Текущее состояние реализации
 
-На данный момент завершены итерации 1–26:
+На данный момент завершены итерации 1–29:
 
 - Итер. 1: каркас проекта, модели, миграции, базовая авторизация и базовые API.
 - Итер. 2: RSS-парсинг, дедупликация, сохранение `articles_raw`.
@@ -109,3 +110,4 @@
 - Итер. 26: tech debt cleanup — выровнена документация по реальным endpoint-контрактам, убран дублирующий startup-log webhook autosync, исправлен bot settings flow (`actor_user_id`) и добавлены тесты user settings API.
 - Итер. 27: Railway deploy hardening — добавлены `nixpacks.toml` и `scripts/start_api.sh` (запуск через `python -m ...`, поддержка `$PORT`, fallback init_db), чтобы исключить ошибки `command not found`/path mismatch при деплое API.
 - Итер. 28: Railway config-as-code hardening — добавлены `railway.toml` и `scripts/railway_start.sh` для принудительного старта из репозитория и role-based запуска (`api`/`worker`/`bot`) через `APP_ROLE`/`RAILWAY_SERVICE_NAME`.
+- Итер. 29: Railway production hardening + deployment playbook — добавлена нормализация `DATABASE_URL` в конфиге (единое поведение API/worker/migrations), улучшен role mapping в `scripts/railway_start.sh`, расширен `.env.example` (`ENV`, `APP_ROLE`) и добавлен полный пошаговый гайд `docs/RAILWAY_DEPLOYMENT_GUIDE.md`.
