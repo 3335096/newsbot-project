@@ -7,6 +7,9 @@ from loguru import logger
 from core.config import settings
 
 router = Router()
+TELEGRAM_MESSAGE_LIMIT = 4096
+CARD_TEXT_SOFT_LIMIT = 3500
+CARD_CONTENT_PREVIEW_LIMIT = 2200
 
 class DraftsState(StatesGroup):
     waiting_for_rejection_reason = State()
@@ -28,6 +31,7 @@ def _card_text(draft: dict, view_mode: str) -> str:
         if is_original
         else draft.get("content_translated")
     ) or "—"
+    content = _truncate_text(content, CARD_CONTENT_PREVIEW_LIMIT)
     lang_line = f"{draft.get('source_language') or 'неизвестно'} → {draft.get('target_language') or 'ru'}"
     mode_label = "ОРИГИНАЛ" if is_original else "ПЕРЕВОД"
     flags = draft.get("flags") or []
@@ -39,7 +43,7 @@ def _card_text(draft: dict, view_mode: str) -> str:
                 f"- {item.get('kind')} | {item.get('action')} | {item.get('pattern')}"
             )
         flags_block = "\n\nФлаги модерации:\n" + "\n".join(lines)
-    return (
+    text = (
         f"Черновик #{draft['id']}\n"
         f"Статус: {draft['status']}\n"
         f"Языки: {lang_line}\n"
@@ -48,6 +52,13 @@ def _card_text(draft: dict, view_mode: str) -> str:
         f"Текст: {content}"
         f"{flags_block}"
     )
+    return _truncate_text(text, CARD_TEXT_SOFT_LIMIT)
+
+
+def _truncate_text(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: max(limit - 1, 1)].rstrip() + "…"
 
 
 def _card_keyboard(draft_id: int, view_mode: str) -> types.InlineKeyboardMarkup:
@@ -71,9 +82,10 @@ def _card_keyboard(draft_id: int, view_mode: str) -> types.InlineKeyboardMarkup:
 
 @router.callback_query(F.data == "show_drafts")
 async def show_drafts(callback: CallbackQuery):
+    # Acknowledge callback early to avoid Telegram-side timeout "loading forever".
+    await callback.answer()
     if not _is_allowed_user(callback.from_user.id):
         await callback.message.answer("Доступ запрещен.")
-        await callback.answer()
         return
 
     try:
@@ -82,12 +94,10 @@ async def show_drafts(callback: CallbackQuery):
     except Exception as exc:
         logger.exception("Failed to fetch drafts from API: {}", exc)
         await callback.message.answer("Не удалось загрузить черновики: ошибка соединения с API.")
-        await callback.answer()
         return
 
     if response.status_code != 200:
         await callback.message.answer(f"Не удалось загрузить черновики: {response.text}")
-        await callback.answer()
         return
 
     try:
@@ -95,12 +105,10 @@ async def show_drafts(callback: CallbackQuery):
     except Exception as exc:
         logger.exception("Failed to decode drafts API response: {}", exc)
         await callback.message.answer("Не удалось разобрать ответ API по черновикам.")
-        await callback.answer()
         return
 
     if not drafts:
         await callback.message.answer("Черновиков пока нет.")
-        await callback.answer()
         return
 
     for draft in drafts:
@@ -108,7 +116,6 @@ async def show_drafts(callback: CallbackQuery):
             _card_text(draft, view_mode="translated"),
             reply_markup=_card_keyboard(draft["id"], view_mode="translated"),
         )
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("toggle_view_"))

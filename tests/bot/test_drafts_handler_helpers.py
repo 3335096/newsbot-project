@@ -34,3 +34,20 @@ def test_card_keyboard_with_channels_shows_publish_buttons() -> None:
         assert "Опубликовать: backup" in buttons
     finally:
         drafts.settings.TELEGRAM_CHANNEL_IDS = original_channel_ids
+
+
+def test_compose_card_message_truncates_long_content() -> None:
+    payload = {
+        "id": 1,
+        "status": "new",
+        "source_language": "en",
+        "target_language": "ru",
+        "title_original": "Original",
+        "content_original": "x" * 12000,
+        "title_translated": "Translated",
+        "content_translated": "y" * 12000,
+        "flags": [],
+    }
+    text = drafts._card_text(payload, view_mode="translated")
+    assert len(text) <= drafts.TELEGRAM_MESSAGE_LIMIT
+    assert text.endswith("…")
