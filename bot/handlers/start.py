@@ -1,6 +1,6 @@
 from aiogram import Router, types
 from aiogram.filters import CommandStart
-from bot.keyboards.main_menu import main_menu_kb
+from bot.keyboards.main_menu import build_main_menu_kb
 from core.config import settings
 
 router = Router()
@@ -15,5 +15,5 @@ async def command_start_handler(message: types.Message) -> None:
     await message.answer(
         f"Привет, {message.from_user.full_name}!\n"
         "Это NewsBot. Выберите действие в меню ниже.",
-        reply_markup=main_menu_kb,
+        reply_markup=build_main_menu_kb(),
     )

@@ -1176,3 +1176,198 @@
 
 ### Ограничения на текущем шаге
 - `scripts/start_api.sh` сохраняет fallback `init_db.py` при неуспехе Alembic (MVP-safe поведение); в production рекомендуется разбирать причину падения миграций и не полагаться на fallback как постоянный сценарий.
+
+---
+
+## Итерация 30 — Web interface MVP (Next.js) + Telegram WebApp entry
+
+### Что сделано
+- Добавлена полноценная веб-панель `web/` на Next.js (App Router, TypeScript):
+  - страницы:
+    - `/login` (авторизация по Telegram payload),
+    - `/dashboard`,
+    - `/dashboard/drafts`,
+    - `/dashboard/sources`.
+- Реализована server-side web auth:
+  - проверка Telegram WebApp `initData` подписи,
+  - проверка Telegram Login Widget payload (JSON fallback),
+  - whitelisting по `TELEGRAM_ALLOWED_USER_IDS`/`TELEGRAM_ADMIN_IDS`,
+  - signed session cookie (`WEB_AUTH_SECRET`),
+  - middleware-защита `/dashboard/*`.
+- Добавлена интеграция веб-панели с текущим FastAPI:
+  - чтение drafts/sources через существующие API endpoint-ы,
+  - действия по drafts из веба:
+    - approve,
+    - reject (с reason).
+- Добавлен Docker runtime для web:
+  - `docker/web.Dockerfile` (multi-stage build, standalone output),
+  - сервис `web` в `docker-compose.yml` (порт `3000`).
+- Добавлена Telegram интеграция web entrypoint:
+  - `WEB_APP_URL` в конфиге (`core/config.py`, `.env.example`),
+  - кнопка `Веб-панель` в главном меню бота (WebApp button), если URL задан.
+- Обновлена документация:
+  - `README.md` (структура, env-переменные для web),
+  - `docs/DEPLOY_AND_OPERATIONS.md` (compose состав и web env requirements).
+
+### Измененные файлы (ключевые)
+- `web/*` (новое Next.js приложение)
+- `docker/web.Dockerfile`
+- `docker-compose.yml`
+- `core/config.py`
+- `bot/keyboards/main_menu.py`
+- `bot/handlers/start.py`
+- `.env.example`
+- `README.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Проверки
+- Техническая проверка веб-сборки (`npm run build`) выполняется после pre-test commit этой итерации.
+
+### Ограничения на текущем шаге
+- Login page использует payload-form fallback для локальной проверки; production UX с auto-инициализацией Telegram Login Widget может быть улучшен отдельным UI-итерационным шагом.
+- В web MVP пока реализованы базовые read/actions для drafts/sources без полного parity с Telegram bot admin-UX.
+
+---
+
+## Итерация 31 — Web production polish: Telegram Login Widget + Sources CRUD UX hardening
+
+### Что сделано
+- Улучшен production UX авторизации web:
+  - добавлен реальный Telegram Login Widget компонент (`web/src/app/login/telegram-widget.tsx`);
+  - `login` страница теперь:
+    - поддерживает auto-auth через Telegram WebApp `initData`,
+    - поддерживает вход через Telegram Login Widget в браузере,
+    - сохраняет manual fallback в debug-секции.
+- Добавлен role-aware shell web-панели:
+  - в `layout` отображаются навигация, текущий пользователь и роль,
+  - добавлен server-side logout action (очистка session cookie + redirect на `/login`).
+- Расширен раздел `Sources` до полноценных web-операций:
+  - create source (admin-only),
+  - update source (admin-only),
+  - delete source (admin-only),
+  - parse-now (доступно авторизованным пользователям),
+  - добавлены проверки ответов backend и revalidate после операций.
+- Усилена конфигурация web auth/login:
+  - добавлен `TELEGRAM_BOT_USERNAME` в env (`.env.example`) и env-layer web (`web/src/lib/env.ts`).
+- Обновлена документация по запуску web:
+  - `README.md` и `docs/DEPLOY_AND_OPERATIONS.md` дополнены переменной `TELEGRAM_BOT_USERNAME`.
+
+### Измененные файлы (ключевые)
+- `web/src/app/login/telegram-widget.tsx` (new)
+- `web/src/app/login/login-client.tsx` (new)
+- `web/src/app/login/page.tsx`
+- `web/src/app/layout.tsx`
+- `web/src/app/dashboard/page.tsx`
+- `web/src/app/dashboard/sources/page.tsx`
+- `web/src/lib/env.ts`
+- `web/src/app/globals.css`
+- `.env.example`
+- `README.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Проверки
+- Web build проверяется после pre-test commit этой итерации:
+  - `cd web && npm run build`
+
+### Ограничения на текущем шаге
+- Источники редактируются в web на уровне основных полей (`name`, `enabled`, `translate_enabled`, `schedule_cron`, `default_target_language`); редактирование `extraction_rules` UI ещё не реализовано.
+- Для browser Login Widget требуется корректно заданный `TELEGRAM_BOT_USERNAME` и соответствие домена условиям Telegram Login.
+
+---
+
+## Итерация 32 — Web operations expansion: Drafts LLM + Publications + toasts
+
+### Что сделано
+- Расширен API публикаций:
+  - добавлен `GET /api/publications` (list endpoint с фильтрами `limit` и `status`),
+  - в ответы публикаций добавлено поле `channel_alias`.
+- Добавлен тестовый контур для нового list endpoint:
+  - `tests/api/test_publications_list_api.py` (порядок, фильтр статуса, наличие `channel_alias`).
+- Расширен web dashboard:
+  - добавлен client-компонент `web/src/app/dashboard/client-dashboard.tsx`,
+  - реализованы вкладки:
+    - `Черновики + LLM`,
+    - `Источники` (линк на отдельный CRUD-экран),
+    - `Публикации`.
+- Вкладка drafts теперь поддерживает LLM-операции прямо из web:
+  - запуск `summary|rewrite|title_hashtags`,
+  - polling статуса задачи через `/api/llm/tasks/{id}`,
+  - отображение результата.
+- Вкладка publications поддерживает:
+  - `create publication`,
+  - `retry publication`,
+  - `requeue-failed publication`,
+  - live-refresh списка после операций.
+- Добавлен единый backend-proxy для web:
+  - `web/src/app/api/backend/[...path]/route.ts` (auth-gated proxy на FastAPI backend для client-side операций).
+- Добавлена общая toast-система в web:
+  - success/error/info уведомления на операции (draft/llm/publication).
+- Обновлена web-навигация:
+  - выделены отдельные страницы `dashboard/sources` и `dashboard/publications`,
+  - `dashboard/drafts` переведен на redirect к единому dashboard-хабу.
+- Обновлены docs:
+  - `docs/API_REFERENCE.md` — добавлен `GET /api/publications`,
+  - `README.md` — зафиксирована итерация 32.
+
+### Измененные файлы (ключевые)
+- `app/api/routers/publications.py`
+- `tests/api/test_publications_list_api.py` (new)
+- `web/src/app/api/backend/[...path]/route.ts` (new)
+- `web/src/app/dashboard/client-dashboard.tsx` (new)
+- `web/src/app/dashboard/page.tsx`
+- `web/src/app/dashboard/drafts/page.tsx`
+- `web/src/app/dashboard/publications/page.tsx` (new)
+- `web/src/app/dashboard/sources/page.tsx`
+- `web/src/app/layout.tsx`
+- `web/src/app/globals.css`
+- `web/src/lib/types.ts`
+- `web/src/lib/session.ts`
+- `docs/API_REFERENCE.md`
+- `README.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Проверки
+- В этой итерации выполняются:
+  - API тесты для публикаций list endpoint,
+  - web build (`cd web && npm run build`).
+
+### Ограничения на текущем шаге
+- LLM запуск из web использует polling в пределах страницы dashboard (без server-sent events/websocket).
+- Вкладка sources в dashboard пока служит как overview/переход в dedicated CRUD-экран `/dashboard/sources`.
+
+---
+
+## Итерация 33 — Web UX hardening: auto-refresh, filters/search, confirm actions
+
+### Что сделано
+- Улучшен UX dashboard (`web/src/app/dashboard/client-dashboard.tsx`):
+  - добавлен авто-refresh (переключаемый `live refresh`) для active pending-состояний:
+    - drafts со статусами `new|flagged`,
+    - publications со статусами `queued|running|scheduled`;
+  - добавлены фильтры и поиск:
+    - для drafts: поиск по `id/title/content` + фильтр по статусу,
+    - для publications: поиск по `id/draft_id/channel/log` + фильтр по статусу.
+- Добавлены confirm-действия для рискованных операций:
+  - подтверждение reject draft через `window.confirm`,
+  - подтверждение retry/requeue failed publication через `window.confirm`.
+- Усилен UX удаления источников в dedicated sources-экране:
+  - delete source требует явного подтверждения через поле `confirm_delete=DELETE` перед submit.
+- Обновлены стили web:
+  - отдельные utility-классы для draft action row и input ширины (`.draft-actions`, `.draft-reject-input`),
+  - сохранена совместимость с текущим layout/navigation.
+
+### Измененные файлы (ключевые)
+- `web/src/app/dashboard/client-dashboard.tsx`
+- `web/src/app/dashboard/sources/page.tsx`
+- `web/src/app/globals.css`
+- `docs/ITERATIONS_LOG.md`
+
+### Проверки
+- В этой итерации выполняется:
+  - `cd web && npm run build`
+
+### Ограничения на текущем шаге
+- Live refresh реализован polling-механикой (интервал), без push-канала (SSE/WebSocket).
+- Confirm-диалоги реализованы через browser `window.confirm`; модальные диалоги UI-компонентов можно добавить отдельным UX-шагом.

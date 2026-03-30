@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     ENV: str = "dev"
     LOG_LEVEL: str = "INFO"
     APP_BASE_URL: str = "http://localhost:8000"
+    WEB_APP_URL: str = ""
 
     DATABASE_URL: str
 
@@ -70,6 +71,18 @@ class Settings(BaseSettings):
         if normalized.startswith("http://") or normalized.startswith("https://"):
             return normalized
         # Railway users often paste hostnames without a scheme.
+        return f"https://{normalized}"
+
+    @field_validator("WEB_APP_URL", mode="before")
+    @classmethod
+    def _normalize_web_app_url(cls, value: str) -> str:
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip().rstrip("/")
+        if not normalized:
+            return normalized
+        if normalized.startswith("http://") or normalized.startswith("https://"):
+            return normalized
         return f"https://{normalized}"
 
     @field_validator("REDIS_URL", mode="before")
