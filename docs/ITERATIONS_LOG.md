@@ -1176,3 +1176,54 @@
 
 ### Ограничения на текущем шаге
 - `scripts/start_api.sh` сохраняет fallback `init_db.py` при неуспехе Alembic (MVP-safe поведение); в production рекомендуется разбирать причину падения миграций и не полагаться на fallback как постоянный сценарий.
+
+---
+
+## Итерация 30 — Web interface MVP (Next.js) + Telegram WebApp entry
+
+### Что сделано
+- Добавлена полноценная веб-панель `web/` на Next.js (App Router, TypeScript):
+  - страницы:
+    - `/login` (авторизация по Telegram payload),
+    - `/dashboard`,
+    - `/dashboard/drafts`,
+    - `/dashboard/sources`.
+- Реализована server-side web auth:
+  - проверка Telegram WebApp `initData` подписи,
+  - проверка Telegram Login Widget payload (JSON fallback),
+  - whitelisting по `TELEGRAM_ALLOWED_USER_IDS`/`TELEGRAM_ADMIN_IDS`,
+  - signed session cookie (`WEB_AUTH_SECRET`),
+  - middleware-защита `/dashboard/*`.
+- Добавлена интеграция веб-панели с текущим FastAPI:
+  - чтение drafts/sources через существующие API endpoint-ы,
+  - действия по drafts из веба:
+    - approve,
+    - reject (с reason).
+- Добавлен Docker runtime для web:
+  - `docker/web.Dockerfile` (multi-stage build, standalone output),
+  - сервис `web` в `docker-compose.yml` (порт `3000`).
+- Добавлена Telegram интеграция web entrypoint:
+  - `WEB_APP_URL` в конфиге (`core/config.py`, `.env.example`),
+  - кнопка `Веб-панель` в главном меню бота (WebApp button), если URL задан.
+- Обновлена документация:
+  - `README.md` (структура, env-переменные для web),
+  - `docs/DEPLOY_AND_OPERATIONS.md` (compose состав и web env requirements).
+
+### Измененные файлы (ключевые)
+- `web/*` (новое Next.js приложение)
+- `docker/web.Dockerfile`
+- `docker-compose.yml`
+- `core/config.py`
+- `bot/keyboards/main_menu.py`
+- `bot/handlers/start.py`
+- `.env.example`
+- `README.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Проверки
+- Техническая проверка веб-сборки (`npm run build`) выполняется после pre-test commit этой итерации.
+
+### Ограничения на текущем шаге
+- Login page использует payload-form fallback для локальной проверки; production UX с auto-инициализацией Telegram Login Widget может быть улучшен отдельным UI-итерационным шагом.
+- В web MVP пока реализованы базовые read/actions для drafts/sources без полного parity с Telegram bot admin-UX.

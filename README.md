@@ -17,6 +17,7 @@
 
 - `app/` — FastAPI-приложение (API, сервисы, БД, планировщик).
 - `bot/` — Telegram-бот (aiogram).
+- `web/` — Next.js веб-панель (Telegram WebApp + browser login).
 - `core/` — конфигурация приложения.
 - `migrations/` — Alembic-миграции.
 - `scripts/` — вспомогательные скрипты.
@@ -55,6 +56,11 @@
 - `TELEGRAM_CHANNEL_IDS`
 - `OPENROUTER_API_KEY`
 - `APP_BASE_URL`
+- `WEB_BACKEND_BASE_URL`
+- `WEB_APP_URL`
+- `WEB_AUTH_SECRET`
+- `WEB_SESSION_COOKIE_NAME`
+- `WEB_SESSION_TTL_SECONDS`
 - `TELEGRAM_WEBHOOK_SECRET`
 - `TELEGRAM_WEBHOOK_URL`
 - `TELEGRAM_USE_WEBHOOK`

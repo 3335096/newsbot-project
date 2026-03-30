@@ -15,10 +15,20 @@
 
 Состав сервисов:
 - `api` — FastAPI
+- `web` — Next.js веб-панель (порт `3000`)
 - `bot` — Telegram bot
 - `worker` — RQ worker для фоновых задач
 - `redis` — брокер очередей
 - `db` — PostgreSQL
+
+### Переменные для web-панели
+
+Для запуска `web` сервиса обязательно заполните:
+- `WEB_BACKEND_BASE_URL` — URL FastAPI для web-сервиса (в docker-compose: `http://api:8000`)
+- `WEB_AUTH_SECRET` — секрет подписи web-сессии
+- `WEB_APP_URL` — публичный URL веб-панели (например `https://news.example.com`)
+
+Если `WEB_APP_URL` задан, в Telegram-боте в главном меню появится кнопка `Веб-панель`.
 
 ## 2. Локальный запуск без Docker
 
