@@ -174,3 +174,25 @@ button {
   color: #fff;
   border-color: #155eef;
 }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.checkbox input {
+  width: auto;
+}
+
+details > summary {
+  cursor: pointer;
+  margin-bottom: 8px;
+}

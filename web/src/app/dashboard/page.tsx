@@ -29,6 +29,17 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </section>
+      <section className="card">
+        <h2>Доступы</h2>
+        <ul>
+          <li>
+            <b>editor</b>: просмотр dashboard, drafts, sources и запуск Parse now.
+          </li>
+          <li>
+            <b>admin</b>: все возможности editor + создание/редактирование/удаление источников.
+          </li>
+        </ul>
+      </section>
     </main>
   );
 }

@@ -40,4 +40,10 @@ export const env = {
   get adminUserIds(): Set<number> {
     return parseIdSet(process.env.TELEGRAM_ADMIN_IDS);
   },
+  get publicWebUrl(): string {
+    return (process.env.WEB_APP_URL || "").trim().replace(/\/+$/, "");
+  },
+  get botUsername(): string {
+    return (process.env.TELEGRAM_BOT_USERNAME || "").trim().replace(/^@+/, "");
+  },
 };

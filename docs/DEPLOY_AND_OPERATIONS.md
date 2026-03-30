@@ -27,6 +27,7 @@
 - `WEB_BACKEND_BASE_URL` — URL FastAPI для web-сервиса (в docker-compose: `http://api:8000`)
 - `WEB_AUTH_SECRET` — секрет подписи web-сессии
 - `WEB_APP_URL` — публичный URL веб-панели (например `https://news.example.com`)
+- `TELEGRAM_BOT_USERNAME` — username бота без `@` для Telegram Login Widget в браузере
 
 Если `WEB_APP_URL` задан, в Telegram-боте в главном меню появится кнопка `Веб-панель`.
 

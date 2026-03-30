@@ -1227,3 +1227,50 @@
 ### Ограничения на текущем шаге
 - Login page использует payload-form fallback для локальной проверки; production UX с auto-инициализацией Telegram Login Widget может быть улучшен отдельным UI-итерационным шагом.
 - В web MVP пока реализованы базовые read/actions для drafts/sources без полного parity с Telegram bot admin-UX.
+
+---
+
+## Итерация 31 — Web production polish: Telegram Login Widget + Sources CRUD UX hardening
+
+### Что сделано
+- Улучшен production UX авторизации web:
+  - добавлен реальный Telegram Login Widget компонент (`web/src/app/login/telegram-widget.tsx`);
+  - `login` страница теперь:
+    - поддерживает auto-auth через Telegram WebApp `initData`,
+    - поддерживает вход через Telegram Login Widget в браузере,
+    - сохраняет manual fallback в debug-секции.
+- Добавлен role-aware shell web-панели:
+  - в `layout` отображаются навигация, текущий пользователь и роль,
+  - добавлен server-side logout action (очистка session cookie + redirect на `/login`).
+- Расширен раздел `Sources` до полноценных web-операций:
+  - create source (admin-only),
+  - update source (admin-only),
+  - delete source (admin-only),
+  - parse-now (доступно авторизованным пользователям),
+  - добавлены проверки ответов backend и revalidate после операций.
+- Усилена конфигурация web auth/login:
+  - добавлен `TELEGRAM_BOT_USERNAME` в env (`.env.example`) и env-layer web (`web/src/lib/env.ts`).
+- Обновлена документация по запуску web:
+  - `README.md` и `docs/DEPLOY_AND_OPERATIONS.md` дополнены переменной `TELEGRAM_BOT_USERNAME`.
+
+### Измененные файлы (ключевые)
+- `web/src/app/login/telegram-widget.tsx` (new)
+- `web/src/app/login/login-client.tsx` (new)
+- `web/src/app/login/page.tsx`
+- `web/src/app/layout.tsx`
+- `web/src/app/dashboard/page.tsx`
+- `web/src/app/dashboard/sources/page.tsx`
+- `web/src/lib/env.ts`
+- `web/src/app/globals.css`
+- `.env.example`
+- `README.md`
+- `docs/DEPLOY_AND_OPERATIONS.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Проверки
+- Web build проверяется после pre-test commit этой итерации:
+  - `cd web && npm run build`
+
+### Ограничения на текущем шаге
+- Источники редактируются в web на уровне основных полей (`name`, `enabled`, `translate_enabled`, `schedule_cron`, `default_target_language`); редактирование `extraction_rules` UI ещё не реализовано.
+- Для browser Login Widget требуется корректно заданный `TELEGRAM_BOT_USERNAME` и соответствие домена условиям Telegram Login.
