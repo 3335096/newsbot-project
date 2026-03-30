@@ -118,3 +118,6 @@
 - Итер. 27: Railway deploy hardening — добавлены `nixpacks.toml` и `scripts/start_api.sh` (запуск через `python -m ...`, поддержка `$PORT`, fallback init_db), чтобы исключить ошибки `command not found`/path mismatch при деплое API.
 - Итер. 28: Railway config-as-code hardening — добавлены `railway.toml` и `scripts/railway_start.sh` для принудительного старта из репозитория и role-based запуска (`api`/`worker`/`bot`) через `APP_ROLE`/`RAILWAY_SERVICE_NAME`.
 - Итер. 29: Railway production hardening + deployment playbook — добавлена нормализация `DATABASE_URL` в конфиге (единое поведение API/worker/migrations), улучшен role mapping в `scripts/railway_start.sh`, расширен `.env.example` (`ENV`, `APP_ROLE`) и добавлен полный пошаговый гайд `docs/RAILWAY_DEPLOYMENT_GUIDE.md`.
+- Итер. 30: web interface MVP — добавлена Next.js веб-панель (`web/`), docker runtime для web, Telegram WebApp входная кнопка в боте и базовые страницы drafts/sources с авторизацией через Telegram.
+- Итер. 31: web production polish — добавлены Telegram Login Widget flow, role-aware shell с logout и CRUD-операции по источникам из web (admin-only mutate).
+- Итер. 32: web operations expansion — добавлены LLM-действия из web-драфтов, вкладка публикаций (create/retry/requeue/status), toast-уведомления и backend endpoint `GET /api/publications`.

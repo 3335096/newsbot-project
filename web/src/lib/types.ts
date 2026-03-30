@@ -24,3 +24,25 @@ export type SourceOut = {
   default_target_language: string;
   extraction_rules: Record<string, unknown> | null;
 };
+
+export type SessionUser = {
+  id: number;
+  role: "admin" | "editor";
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  exp: number;
+};
+
+export type PublicationOut = {
+  id: number;
+  draft_id: number | null;
+  channel_id: number | null;
+  channel_alias: string | null;
+  message_id: number | null;
+  status: string;
+  scheduled_at: string | null;
+  published_at: string | null;
+  target_language: string;
+  log: string | null;
+};

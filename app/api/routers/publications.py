@@ -26,6 +26,7 @@ class PublicationOut(BaseModel):
     id: int
     draft_id: int | None
     channel_id: int | None
+    channel_alias: str | None
     message_id: int | None
     status: str
     scheduled_at: datetime | None
@@ -36,6 +37,35 @@ class PublicationOut(BaseModel):
 
 class RetryPublicationPayload(BaseModel):
     force: bool = True
+
+
+def _publication_to_out(publication: Publication) -> dict:
+    return {
+        "id": publication.id,
+        "draft_id": publication.draft_id,
+        "channel_id": publication.channel_id,
+        "channel_alias": publication.channel_alias,
+        "message_id": publication.message_id,
+        "status": publication.status,
+        "scheduled_at": publication.scheduled_at,
+        "published_at": publication.published_at,
+        "target_language": publication.target_language,
+        "log": publication.log,
+    }
+
+
+@router.get("", response_model=list[PublicationOut])
+async def list_publications(
+    limit: int = 50,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+):
+    safe_limit = max(1, min(limit, 200))
+    query = db.query(Publication).order_by(Publication.id.desc())
+    if status:
+        query = query.filter(Publication.status == status)
+    publications = query.limit(safe_limit).all()
+    return [_publication_to_out(publication) for publication in publications]
 
 
 @router.post("", response_model=PublicationOut)
@@ -54,17 +84,7 @@ async def create_publication(payload: PublicationCreatePayload, db: Session = De
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return {
-        "id": publication.id,
-        "draft_id": publication.draft_id,
-        "channel_id": publication.channel_id,
-        "message_id": publication.message_id,
-        "status": publication.status,
-        "scheduled_at": publication.scheduled_at,
-        "published_at": publication.published_at,
-        "target_language": publication.target_language,
-        "log": publication.log,
-    }
+    return _publication_to_out(publication)
 
 
 @router.post("/{publication_id}/requeue-failed", response_model=PublicationOut)
@@ -92,17 +112,7 @@ async def requeue_failed_publication(
 
     enqueue_publication(db, publication, force=True)
     db.refresh(publication)
-    return {
-        "id": publication.id,
-        "draft_id": publication.draft_id,
-        "channel_id": publication.channel_id,
-        "message_id": publication.message_id,
-        "status": publication.status,
-        "scheduled_at": publication.scheduled_at,
-        "published_at": publication.published_at,
-        "target_language": publication.target_language,
-        "log": publication.log,
-    }
+    return _publication_to_out(publication)
 
 
 @router.get("/{publication_id}", response_model=PublicationOut)
@@ -111,17 +121,7 @@ async def get_publication(publication_id: int, db: Session = Depends(get_db)):
     if not publication:
         raise HTTPException(status_code=404, detail="Publication not found")
 
-    return {
-        "id": publication.id,
-        "draft_id": publication.draft_id,
-        "channel_id": publication.channel_id,
-        "message_id": publication.message_id,
-        "status": publication.status,
-        "scheduled_at": publication.scheduled_at,
-        "published_at": publication.published_at,
-        "target_language": publication.target_language,
-        "log": publication.log,
-    }
+    return _publication_to_out(publication)
 
 
 @router.post("/{publication_id}/retry", response_model=PublicationOut)
@@ -141,14 +141,4 @@ async def retry_publication(
         raise HTTPException(status_code=409, detail="Publication was not enqueued")
 
     db.refresh(publication)
-    return {
-        "id": publication.id,
-        "draft_id": publication.draft_id,
-        "channel_id": publication.channel_id,
-        "message_id": publication.message_id,
-        "status": publication.status,
-        "scheduled_at": publication.scheduled_at,
-        "published_at": publication.published_at,
-        "target_language": publication.target_language,
-        "log": publication.log,
-    }
+    return _publication_to_out(publication)

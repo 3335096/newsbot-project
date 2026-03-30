@@ -22,6 +22,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSessionUser();
+  const displayName = [session?.first_name, session?.last_name].filter(Boolean).join(" ");
   return (
     <html lang="ru">
       <body>
@@ -32,9 +33,15 @@ export default async function RootLayout({
                 <strong>NewsBot Web</strong>
                 {session ? (
                   <nav className="row">
-                    <Link href="/dashboard">Дашборд</Link>
-                    <Link href="/dashboard/drafts">Черновики</Link>
-                    <Link href="/dashboard/sources">Источники</Link>
+                    <Link className="nav-link" href="/dashboard">
+                      Дашборд
+                    </Link>
+                    <Link className="nav-link" href="/dashboard/sources">
+                      Источники
+                    </Link>
+                    <Link className="nav-link" href="/dashboard/publications">
+                      Публикации
+                    </Link>
                   </nav>
                 ) : null}
               </div>
@@ -42,7 +49,7 @@ export default async function RootLayout({
                 {session ? (
                   <>
                     <span className="muted">
-                      #{session.id} ({session.role})
+                      {displayName ? `${displayName} · ` : ""}#{session.id} ({session.role})
                     </span>
                     <form action={logoutAction}>
                       <button type="submit" className="button">

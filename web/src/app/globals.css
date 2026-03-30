@@ -175,6 +175,57 @@ button {
   border-color: #155eef;
 }
 
+.button-primary:disabled {
+  opacity: 0.65;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.result-box {
+  white-space: pre-wrap;
+  background: #f8f9fc;
+  border: 1px solid #eaecf0;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 10px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.toast {
+  min-width: 240px;
+  max-width: 420px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.2);
+  font-size: 14px;
+}
+
+.toast-success {
+  background: #067647;
+}
+
+.toast-error {
+  background: #b42318;
+}
+
+.toast-info {
+  background: #175cd3;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -195,4 +246,20 @@ button {
 details > summary {
   cursor: pointer;
   margin-bottom: 8px;
+}
+
+.nav-link {
+  font-weight: 500;
+}
+
+.draft-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.draft-reject-input {
+  min-width: 220px;
+  flex: 1;
 }

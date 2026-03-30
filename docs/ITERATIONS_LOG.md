@@ -1274,3 +1274,65 @@
 ### Ограничения на текущем шаге
 - Источники редактируются в web на уровне основных полей (`name`, `enabled`, `translate_enabled`, `schedule_cron`, `default_target_language`); редактирование `extraction_rules` UI ещё не реализовано.
 - Для browser Login Widget требуется корректно заданный `TELEGRAM_BOT_USERNAME` и соответствие домена условиям Telegram Login.
+
+---
+
+## Итерация 32 — Web operations expansion: Drafts LLM + Publications + toasts
+
+### Что сделано
+- Расширен API публикаций:
+  - добавлен `GET /api/publications` (list endpoint с фильтрами `limit` и `status`),
+  - в ответы публикаций добавлено поле `channel_alias`.
+- Добавлен тестовый контур для нового list endpoint:
+  - `tests/api/test_publications_list_api.py` (порядок, фильтр статуса, наличие `channel_alias`).
+- Расширен web dashboard:
+  - добавлен client-компонент `web/src/app/dashboard/client-dashboard.tsx`,
+  - реализованы вкладки:
+    - `Черновики + LLM`,
+    - `Источники` (линк на отдельный CRUD-экран),
+    - `Публикации`.
+- Вкладка drafts теперь поддерживает LLM-операции прямо из web:
+  - запуск `summary|rewrite|title_hashtags`,
+  - polling статуса задачи через `/api/llm/tasks/{id}`,
+  - отображение результата.
+- Вкладка publications поддерживает:
+  - `create publication`,
+  - `retry publication`,
+  - `requeue-failed publication`,
+  - live-refresh списка после операций.
+- Добавлен единый backend-proxy для web:
+  - `web/src/app/api/backend/[...path]/route.ts` (auth-gated proxy на FastAPI backend для client-side операций).
+- Добавлена общая toast-система в web:
+  - success/error/info уведомления на операции (draft/llm/publication).
+- Обновлена web-навигация:
+  - выделены отдельные страницы `dashboard/sources` и `dashboard/publications`,
+  - `dashboard/drafts` переведен на redirect к единому dashboard-хабу.
+- Обновлены docs:
+  - `docs/API_REFERENCE.md` — добавлен `GET /api/publications`,
+  - `README.md` — зафиксирована итерация 32.
+
+### Измененные файлы (ключевые)
+- `app/api/routers/publications.py`
+- `tests/api/test_publications_list_api.py` (new)
+- `web/src/app/api/backend/[...path]/route.ts` (new)
+- `web/src/app/dashboard/client-dashboard.tsx` (new)
+- `web/src/app/dashboard/page.tsx`
+- `web/src/app/dashboard/drafts/page.tsx`
+- `web/src/app/dashboard/publications/page.tsx` (new)
+- `web/src/app/dashboard/sources/page.tsx`
+- `web/src/app/layout.tsx`
+- `web/src/app/globals.css`
+- `web/src/lib/types.ts`
+- `web/src/lib/session.ts`
+- `docs/API_REFERENCE.md`
+- `README.md`
+- `docs/ITERATIONS_LOG.md`
+
+### Проверки
+- В этой итерации выполняются:
+  - API тесты для публикаций list endpoint,
+  - web build (`cd web && npm run build`).
+
+### Ограничения на текущем шаге
+- LLM запуск из web использует polling в пределах страницы dashboard (без server-sent events/websocket).
+- Вкладка sources в dashboard пока служит как overview/переход в dedicated CRUD-экран `/dashboard/sources`.

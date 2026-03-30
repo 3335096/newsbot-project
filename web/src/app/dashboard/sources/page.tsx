@@ -141,7 +141,10 @@ export default async function SourcesPage() {
     <main className="container">
       <div className="row space-between">
         <h1>Источники</h1>
-        <Link href="/dashboard">Назад к панели</Link>
+        <div className="row">
+          <Link href="/dashboard">Назад к панели</Link>
+          <Link href="/dashboard/publications">Публикации</Link>
+        </div>
       </div>
       {session.role === "admin" ? (
         <section className="card">

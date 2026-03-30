@@ -174,6 +174,14 @@ Endpoint сбрасывает `result/error`, переводит задачу в
 
 ## Публикации (`/api/publications`)
 
+### `GET /api/publications`
+
+Список публикаций (по умолчанию последние `50`, сортировка `id DESC`).
+
+Query-параметры:
+- `limit` (`1..200`)
+- `status` (опциональный фильтр по статусу, например `queued|scheduled|error`)
+
 ### `POST /api/publications`
 
 Создание публикации. При `publish_now=true` публикация ставится в очередь worker-а.

@@ -2,15 +2,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 
 import { env } from "@/lib/env";
-
-export type SessionUser = {
-  id: number;
-  role: "admin" | "editor";
-  first_name?: string;
-  last_name?: string;
-  username?: string;
-  exp: number;
-};
+import type { SessionUser } from "@/lib/types";
 
 type SessionUserInput = Omit<SessionUser, "exp">;
 

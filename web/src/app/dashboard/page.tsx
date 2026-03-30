@@ -1,45 +1,39 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import ClientDashboard from "@/app/dashboard/client-dashboard";
+import { env } from "@/lib/env";
 import { getSessionUser } from "@/lib/session";
+import type { DraftOut, PublicationOut } from "@/lib/types";
+
+async function fetchDrafts(): Promise<DraftOut[]> {
+  const response = await fetch(`${env.backendBaseUrl}/api/drafts`, { cache: "no-store" });
+  if (!response.ok) {
+    return [];
+  }
+  return (await response.json()) as DraftOut[];
+}
+
+async function fetchPublications(): Promise<PublicationOut[]> {
+  const response = await fetch(`${env.backendBaseUrl}/api/publications?limit=100`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    return [];
+  }
+  return (await response.json()) as PublicationOut[];
+}
 
 export default async function DashboardPage() {
   const session = await getSessionUser();
   if (!session) {
     redirect("/login");
   }
+  const [drafts, publications] = await Promise.all([fetchDrafts(), fetchPublications()]);
   return (
-    <main className="container">
-      <h1>NewsBot Web</h1>
-      <p className="muted">
-        Веб-панель подключена к существующему FastAPI и доступна также как Telegram WebApp.
-      </p>
-      <p className="muted">
-        Пользователь: {session.id} ({session.role})
-      </p>
-
-      <section className="card">
-        <h2>Разделы</h2>
-        <div className="actions">
-          <Link className="button button-primary" href="/dashboard/drafts">
-            Черновики
-          </Link>
-          <Link className="button" href="/dashboard/sources">
-            Источники
-          </Link>
-        </div>
-      </section>
-      <section className="card">
-        <h2>Доступы</h2>
-        <ul>
-          <li>
-            <b>editor</b>: просмотр dashboard, drafts, sources и запуск Parse now.
-          </li>
-          <li>
-            <b>admin</b>: все возможности editor + создание/редактирование/удаление источников.
-          </li>
-        </ul>
-      </section>
-    </main>
+    <ClientDashboard
+      initialSession={session}
+      initialDrafts={drafts}
+      initialPublications={publications}
+    />
   );
 }
