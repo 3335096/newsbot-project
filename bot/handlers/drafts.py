@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery
 import httpx
+from loguru import logger
 from core.config import settings
 
 router = Router()
@@ -75,9 +76,27 @@ async def show_drafts(callback: CallbackQuery):
         await callback.answer()
         return
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{settings.APP_BASE_URL}/api/drafts")
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(f"{settings.APP_BASE_URL}/api/drafts")
+    except Exception as exc:
+        logger.exception("Failed to fetch drafts from API: {}", exc)
+        await callback.message.answer("Не удалось загрузить черновики: ошибка соединения с API.")
+        await callback.answer()
+        return
+
+    if response.status_code != 200:
+        await callback.message.answer(f"Не удалось загрузить черновики: {response.text}")
+        await callback.answer()
+        return
+
+    try:
         drafts = response.json()
+    except Exception as exc:
+        logger.exception("Failed to decode drafts API response: {}", exc)
+        await callback.message.answer("Не удалось разобрать ответ API по черновикам.")
+        await callback.answer()
+        return
 
     if not drafts:
         await callback.message.answer("Черновиков пока нет.")
