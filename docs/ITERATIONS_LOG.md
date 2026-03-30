@@ -1336,3 +1336,38 @@
 ### Ограничения на текущем шаге
 - LLM запуск из web использует polling в пределах страницы dashboard (без server-sent events/websocket).
 - Вкладка sources в dashboard пока служит как overview/переход в dedicated CRUD-экран `/dashboard/sources`.
+
+---
+
+## Итерация 33 — Web UX hardening: auto-refresh, filters/search, confirm actions
+
+### Что сделано
+- Улучшен UX dashboard (`web/src/app/dashboard/client-dashboard.tsx`):
+  - добавлен авто-refresh (переключаемый `live refresh`) для active pending-состояний:
+    - drafts со статусами `new|flagged`,
+    - publications со статусами `queued|running|scheduled`;
+  - добавлены фильтры и поиск:
+    - для drafts: поиск по `id/title/content` + фильтр по статусу,
+    - для publications: поиск по `id/draft_id/channel/log` + фильтр по статусу.
+- Добавлены confirm-действия для рискованных операций:
+  - подтверждение reject draft через `window.confirm`,
+  - подтверждение retry/requeue failed publication через `window.confirm`.
+- Усилен UX удаления источников в dedicated sources-экране:
+  - delete source требует явного подтверждения через поле `confirm_delete=DELETE` перед submit.
+- Обновлены стили web:
+  - отдельные utility-классы для draft action row и input ширины (`.draft-actions`, `.draft-reject-input`),
+  - сохранена совместимость с текущим layout/navigation.
+
+### Измененные файлы (ключевые)
+- `web/src/app/dashboard/client-dashboard.tsx`
+- `web/src/app/dashboard/sources/page.tsx`
+- `web/src/app/globals.css`
+- `docs/ITERATIONS_LOG.md`
+
+### Проверки
+- В этой итерации выполняется:
+  - `cd web && npm run build`
+
+### Ограничения на текущем шаге
+- Live refresh реализован polling-механикой (интервал), без push-канала (SSE/WebSocket).
+- Confirm-диалоги реализованы через browser `window.confirm`; модальные диалоги UI-компонентов можно добавить отдельным UX-шагом.

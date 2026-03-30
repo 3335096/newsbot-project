@@ -96,8 +96,12 @@ async function deleteSource(formData: FormData): Promise<void> {
     throw new Error("Only admins can delete sources");
   }
   const sourceId = Number(formData.get("source_id"));
+  const confirmText = String(formData.get("confirm_delete") ?? "").trim().toLowerCase();
   if (!sourceId) {
     throw new Error("source_id is required");
+  }
+  if (confirmText !== "delete") {
+    throw new Error("Type DELETE to confirm removal");
   }
   const response = await fetch(`${env.backendBaseUrl}/api/sources/${sourceId}`, {
     method: "DELETE",
@@ -261,6 +265,8 @@ export default async function SourcesPage() {
                       </form>
                       <form action={deleteSource}>
                         <input type="hidden" name="source_id" value={source.id} />
+                        <label>Подтвердите удаление</label>
+                        <input name="confirm_delete" type="text" placeholder="DELETE" required />
                         <button type="submit" className="button danger">
                           Удалить
                         </button>

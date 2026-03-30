@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import type { DraftOut, PublicationOut, SessionUser } from "@/lib/types";
@@ -36,6 +36,7 @@ const TASK_TYPE_TO_PRESET: Record<LlmTaskType, string> = {
 
 const POLL_INTERVAL_MS = 1000;
 const POLL_ATTEMPTS = 12;
+const LIVE_REFRESH_INTERVAL_MS = 5000;
 
 function humanizeDate(value: string | null | undefined): string {
   if (!value) {
@@ -62,6 +63,11 @@ export default function ClientDashboard({
   const [pubChannel, setPubChannel] = useState<string>("");
   const [pubNow, setPubNow] = useState<boolean>(true);
   const [pubScheduleAt, setPubScheduleAt] = useState<string>("");
+  const [draftQuery, setDraftQuery] = useState<string>("");
+  const [draftStatusFilter, setDraftStatusFilter] = useState<string>("all");
+  const [publicationQuery, setPublicationQuery] = useState<string>("");
+  const [publicationStatusFilter, setPublicationStatusFilter] = useState<string>("all");
+  const [liveRefreshEnabled, setLiveRefreshEnabled] = useState<boolean>(true);
   const [rejectReasonByDraft, setRejectReasonByDraft] = useState<Record<number, string>>({});
   const [llmTaskTypeByDraft, setLlmTaskTypeByDraft] = useState<
     Record<number, LlmTaskType>
@@ -120,6 +126,24 @@ export default function ClientDashboard({
     const data = await callBackend<PublicationOut[]>("api/publications?limit=100");
     setPublications(data);
   };
+
+  useEffect(() => {
+    if (!liveRefreshEnabled || isBusy) {
+      return;
+    }
+    const hasRunningPublications = publications.some((publication) =>
+      ["queued", "running", "scheduled"].includes(publication.status),
+    );
+    const hasPendingDrafts = drafts.some((draft) => ["new", "flagged"].includes(draft.status));
+    if (!hasRunningPublications && !hasPendingDrafts) {
+      return;
+    }
+    const timer = setInterval(() => {
+      void refreshDrafts();
+      void refreshPublications();
+    }, LIVE_REFRESH_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [liveRefreshEnabled, isBusy, publications, drafts]);
 
   const withBusy = async (fn: () => Promise<void>) => {
     if (isBusy) {
@@ -260,15 +284,82 @@ export default function ClientDashboard({
       await refreshPublications();
     });
 
+  const filteredDrafts = useMemo(() => {
+    const q = draftQuery.trim().toLowerCase();
+    return drafts.filter((draft) => {
+      if (draftStatusFilter !== "all" && draft.status !== draftStatusFilter) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
+      const haystack = [
+        String(draft.id),
+        draft.title_translated || "",
+        draft.title_original || "",
+        draft.content_translated || "",
+        draft.content_original || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [drafts, draftQuery, draftStatusFilter]);
+
+  const filteredPublications = useMemo(() => {
+    const q = publicationQuery.trim().toLowerCase();
+    return publications.filter((publication) => {
+      if (publicationStatusFilter !== "all" && publication.status !== publicationStatusFilter) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
+      const haystack = [
+        String(publication.id),
+        String(publication.draft_id ?? ""),
+        String(publication.channel_alias ?? ""),
+        String(publication.channel_id ?? ""),
+        publication.status,
+        publication.log || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [publications, publicationQuery, publicationStatusFilter]);
+
   const renderDrafts = () => (
     <section className="card">
       <h2>Черновики + LLM</h2>
       <p className="muted">Одобрение/отклонение и запуск LLM-задач прямо из веба.</p>
+      <div className="form-grid">
+        <div>
+          <label>Поиск по черновикам</label>
+          <input
+            type="text"
+            placeholder="ID, заголовок, фрагмент текста"
+            value={draftQuery}
+            onChange={(event) => setDraftQuery(event.target.value)}
+          />
+        </div>
+        <div>
+          <label>Фильтр по статусу</label>
+          <select value={draftStatusFilter} onChange={(event) => setDraftStatusFilter(event.target.value)}>
+            <option value="all">all</option>
+            <option value="new">new</option>
+            <option value="flagged">flagged</option>
+            <option value="approved">approved</option>
+            <option value="rejected">rejected</option>
+            <option value="published">published</option>
+          </select>
+        </div>
+      </div>
       <div className="stack">
-        {drafts.length === 0 ? (
-          <p>Черновиков пока нет.</p>
+        {filteredDrafts.length === 0 ? (
+          <p>По выбранным фильтрам черновиков не найдено.</p>
         ) : (
-          drafts.map((draft) => (
+          filteredDrafts.map((draft) => (
             <article key={draft.id} className="card">
               <h3>
                 #{draft.id} — {draft.title_translated || draft.title_original || "Без заголовка"}
@@ -291,7 +382,17 @@ export default function ClientDashboard({
                     setRejectReasonByDraft((prev) => ({ ...prev, [draft.id]: event.target.value }))
                   }
                 />
-                <button type="button" onClick={() => void handleRejectDraft(draft.id)} disabled={isBusy}>
+                <button
+                  type="button"
+                  className="button danger"
+                  onClick={() => {
+                    if (!window.confirm(`Подтвердить отклонение draft #${draft.id}?`)) {
+                      return;
+                    }
+                    void handleRejectDraft(draft.id);
+                  }}
+                  disabled={isBusy}
+                >
                   Отклонить
                 </button>
               </div>
@@ -370,6 +471,31 @@ export default function ClientDashboard({
     <section className="card">
       <h2>Публикации</h2>
       <p className="muted">Создание публикации и операционные retry/requeue действия.</p>
+      <div className="form-grid">
+        <div>
+          <label>Поиск по публикациям</label>
+          <input
+            type="text"
+            placeholder="ID, draft_id, channel, log"
+            value={publicationQuery}
+            onChange={(event) => setPublicationQuery(event.target.value)}
+          />
+        </div>
+        <div>
+          <label>Фильтр по статусу</label>
+          <select
+            value={publicationStatusFilter}
+            onChange={(event) => setPublicationStatusFilter(event.target.value)}
+          >
+            <option value="all">all</option>
+            <option value="queued">queued</option>
+            <option value="running">running</option>
+            <option value="scheduled">scheduled</option>
+            <option value="success">success</option>
+            <option value="error">error</option>
+          </select>
+        </div>
+      </div>
 
       <section className="card">
         <h3>Создать публикацию</h3>
@@ -416,6 +542,31 @@ export default function ClientDashboard({
 
       <section className="card">
         <h3>Последние публикации</h3>
+        <div className="form-grid">
+          <div>
+            <label>Поиск</label>
+            <input
+              type="text"
+              placeholder="ID, draft_id, channel, log"
+              value={publicationQuery}
+              onChange={(event) => setPublicationQuery(event.target.value)}
+            />
+          </div>
+          <div>
+            <label>Фильтр по статусу</label>
+            <select
+              value={publicationStatusFilter}
+              onChange={(event) => setPublicationStatusFilter(event.target.value)}
+            >
+              <option value="all">all</option>
+              <option value="queued">queued</option>
+              <option value="running">running</option>
+              <option value="scheduled">scheduled</option>
+              <option value="success">success</option>
+              <option value="error">error</option>
+            </select>
+          </div>
+        </div>
         <table className="table">
           <thead>
             <tr>
@@ -429,7 +580,7 @@ export default function ClientDashboard({
             </tr>
           </thead>
           <tbody>
-            {publications.map((publication) => (
+            {filteredPublications.map((publication) => (
               <tr key={publication.id}>
                 <td>{publication.id}</td>
                 <td>{publication.draft_id ?? "-"}</td>
@@ -441,14 +592,24 @@ export default function ClientDashboard({
                   <div className="actions">
                     <button
                       type="button"
-                      onClick={() => void handleRetryPublication(publication.id)}
+                      onClick={() => {
+                        if (!window.confirm(`Повторно отправить publication #${publication.id}?`)) {
+                          return;
+                        }
+                        void handleRetryPublication(publication.id);
+                      }}
                       disabled={isBusy}
                     >
                       Retry
                     </button>
                     <button
                       type="button"
-                      onClick={() => void handleRequeueFailedPublication(publication.id)}
+                      onClick={() => {
+                        if (!window.confirm(`Requeue failed publication #${publication.id}?`)) {
+                          return;
+                        }
+                        void handleRequeueFailedPublication(publication.id);
+                      }}
                       disabled={isBusy}
                     >
                       Requeue failed
@@ -493,7 +654,19 @@ export default function ClientDashboard({
           >
             Публикации
           </button>
+          <label className="checkbox dashboard-live-refresh-toggle">
+            <input
+              type="checkbox"
+              checked={liveRefreshEnabled}
+              onChange={(event) => setLiveRefreshEnabled(event.target.checked)}
+            />
+            live refresh
+          </label>
         </div>
+        <p className="hint">
+          Автообновление активно только при pending-статусах (draft: new/flagged, publication:
+          queued/running/scheduled).
+        </p>
       </section>
 
       {activeTab === "drafts" ? renderDrafts() : null}
