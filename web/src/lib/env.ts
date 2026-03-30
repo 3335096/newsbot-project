@@ -18,14 +18,26 @@ function parseIdSet(raw: string | undefined): Set<number> {
   );
 }
 
-const allowedRaw = process.env.TELEGRAM_ALLOWED_USER_IDS || process.env.TELEGRAM_ADMIN_IDS || "";
-
 export const env = {
-  botToken: readRequired("TELEGRAM_BOT_TOKEN"),
-  webAuthSecret: readRequired("WEB_AUTH_SECRET"),
-  backendBaseUrl: readRequired("WEB_BACKEND_BASE_URL").replace(/\/+$/, ""),
-  cookieName: (process.env.WEB_SESSION_COOKIE_NAME || "newsbot_web_session").trim(),
-  sessionTtlSeconds: Number(process.env.WEB_SESSION_TTL_SECONDS || "86400"),
-  allowedUserIds: parseIdSet(allowedRaw),
-  adminUserIds: parseIdSet(process.env.TELEGRAM_ADMIN_IDS),
+  get botToken(): string {
+    return readRequired("TELEGRAM_BOT_TOKEN");
+  },
+  get webAuthSecret(): string {
+    return readRequired("WEB_AUTH_SECRET");
+  },
+  get backendBaseUrl(): string {
+    return readRequired("WEB_BACKEND_BASE_URL").replace(/\/+$/, "");
+  },
+  get cookieName(): string {
+    return (process.env.WEB_SESSION_COOKIE_NAME || "newsbot_web_session").trim();
+  },
+  get sessionTtlSeconds(): number {
+    return Number(process.env.WEB_SESSION_TTL_SECONDS || "86400");
+  },
+  get allowedUserIds(): Set<number> {
+    return parseIdSet(process.env.TELEGRAM_ALLOWED_USER_IDS || process.env.TELEGRAM_ADMIN_IDS || "");
+  },
+  get adminUserIds(): Set<number> {
+    return parseIdSet(process.env.TELEGRAM_ADMIN_IDS);
+  },
 };
