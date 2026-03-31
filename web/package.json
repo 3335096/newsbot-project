@@ -6,7 +6,7 @@
     "dev": "next dev --hostname 0.0.0.0 --port 3000",
     "lint": "next lint",
     "build": "next build",
-    "start": "HOSTNAME=0.0.0.0 PORT=${PORT:-3000} node .next/standalone/server.js"
+    "start": "bash scripts/start_standalone.sh"
   },
   "dependencies": {
     "next": "^16.2.1",
