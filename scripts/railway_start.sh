@@ -16,7 +16,9 @@ if [[ "${role}" =~ (^|[^a-z0-9])worker([^a-z0-9]|$) ]]; then
   role="worker"
 elif [[ "${role}" =~ (^|[^a-z0-9])bot([^a-z0-9]|$) ]]; then
   role="bot"
-elif [[ "${role}" =~ (^|[^a-z0-9])(api|web)([^a-z0-9]|$) ]]; then
+elif [[ "${role}" =~ (^|[^a-z0-9])web([^a-z0-9]|$) ]]; then
+  role="web"
+elif [[ "${role}" =~ (^|[^a-z0-9])api([^a-z0-9]|$) ]]; then
   role="api"
 fi
 
@@ -28,6 +30,10 @@ case "${role}" in
   bot)
     echo "[railway_start] role=bot"
     exec python -m bot.main
+    ;;
+  web)
+    echo "[railway_start] role=web"
+    exec bash scripts/start_web.sh
     ;;
   *)
     echo "[railway_start] role=api (raw='${raw_role}')"
