@@ -8,7 +8,10 @@ export async function middleware(request: NextRequest) {
   if (!pathname.startsWith(PROTECTED_PREFIX)) {
     return NextResponse.next();
   }
-  const disableTelegramAuthRaw = (process.env.WEB_DISABLE_TELEGRAM_AUTH || "").trim().toLowerCase();
+  const disableTelegramAuthRaw = (process.env.WEB_DISABLE_TELEGRAM_AUTH || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .toLowerCase();
   const disableTelegramAuth =
     disableTelegramAuthRaw === "1" ||
     disableTelegramAuthRaw === "true" ||
