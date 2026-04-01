@@ -18,6 +18,14 @@ function parseIdSet(raw: string | undefined): Set<number> {
   );
 }
 
+function parseBooleanEnv(raw: string | undefined): boolean {
+  const normalized = (raw || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
 export const env = {
   get botToken(): string {
     return readRequired("TELEGRAM_BOT_TOKEN");
@@ -47,8 +55,7 @@ export const env = {
     return (process.env.TELEGRAM_BOT_USERNAME || "").trim().replace(/^@+/, "");
   },
   get disableTelegramAuth(): boolean {
-    const raw = (process.env.WEB_DISABLE_TELEGRAM_AUTH || "").trim().toLowerCase();
-    return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+    return parseBooleanEnv(process.env.WEB_DISABLE_TELEGRAM_AUTH);
   },
   get mvpRole(): "admin" | "editor" {
     return (process.env.WEB_MVP_ROLE || "").trim().toLowerCase() === "editor" ? "editor" : "admin";
