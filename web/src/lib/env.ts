@@ -46,4 +46,11 @@ export const env = {
   get botUsername(): string {
     return (process.env.TELEGRAM_BOT_USERNAME || "").trim().replace(/^@+/, "");
   },
+  get disableTelegramAuth(): boolean {
+    const raw = (process.env.WEB_DISABLE_TELEGRAM_AUTH || "").trim().toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+  },
+  get mvpRole(): "admin" | "editor" {
+    return (process.env.WEB_MVP_ROLE || "").trim().toLowerCase() === "editor" ? "editor" : "admin";
+  },
 };
