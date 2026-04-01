@@ -8,6 +8,15 @@ export async function middleware(request: NextRequest) {
   if (!pathname.startsWith(PROTECTED_PREFIX)) {
     return NextResponse.next();
   }
+  const disableTelegramAuthRaw = (process.env.WEB_DISABLE_TELEGRAM_AUTH || "").trim().toLowerCase();
+  const disableTelegramAuth =
+    disableTelegramAuthRaw === "1" ||
+    disableTelegramAuthRaw === "true" ||
+    disableTelegramAuthRaw === "yes" ||
+    disableTelegramAuthRaw === "on";
+  if (disableTelegramAuth) {
+    return NextResponse.next();
+  }
 
   const token = request.cookies.get(process.env.WEB_SESSION_COOKIE_NAME || "newsbot_web_session")?.value;
   const payload = token ? await verifySessionToken(token) : null;

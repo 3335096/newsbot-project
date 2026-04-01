@@ -69,6 +69,16 @@ export function verifySessionToken(token: string): SessionUser | null {
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
+  if (env.disableTelegramAuth) {
+    return {
+      id: 1,
+      role: env.mvpRole,
+      first_name: "MVP",
+      last_name: "User",
+      username: "mvp_user",
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365,
+    };
+  }
   const cookieStore = await cookies();
   const token = cookieStore.get(env.cookieName)?.value;
   if (!token) {
@@ -78,6 +88,16 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 }
 
 export function getSessionFromRequest(request: Request): SessionUser | null {
+  if (env.disableTelegramAuth) {
+    return {
+      id: 1,
+      role: env.mvpRole,
+      first_name: "MVP",
+      last_name: "User",
+      username: "mvp_user",
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365,
+    };
+  }
   const cookieHeader = request.headers.get("cookie") || "";
   const cookieValue = cookieHeader
     .split(";")
