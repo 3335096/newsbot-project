@@ -2,7 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { RefreshCw } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DraftOut, PublicationOut, SessionUser } from "@/lib/types";
 
 type TabKey = "drafts" | "sources" | "publications";
@@ -330,354 +340,405 @@ export default function ClientDashboard({
   }, [publications, publicationQuery, publicationStatusFilter]);
 
   const renderDrafts = () => (
-    <section className="card">
-      <h2>Черновики + LLM</h2>
-      <p className="muted">Одобрение/отклонение и запуск LLM-задач прямо из веба.</p>
-      <div className="form-grid">
-        <div>
-          <label>Поиск по черновикам</label>
-          <input
-            type="text"
-            placeholder="ID, заголовок, фрагмент текста"
-            value={draftQuery}
-            onChange={(event) => setDraftQuery(event.target.value)}
-          />
+    <Card>
+      <CardHeader>
+        <CardTitle>Черновики + LLM</CardTitle>
+        <CardDescription>Одобрение/отклонение и запуск LLM-задач прямо из веба.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-2">
+            <Label>Поиск по черновикам</Label>
+            <Input
+              type="text"
+              placeholder="ID, заголовок, фрагмент текста"
+              value={draftQuery}
+              onChange={(event) => setDraftQuery(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Фильтр по статусу</Label>
+            <Select value={draftStatusFilter} onValueChange={setDraftStatusFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">all</SelectItem>
+                <SelectItem value="new">new</SelectItem>
+                <SelectItem value="flagged">flagged</SelectItem>
+                <SelectItem value="approved">approved</SelectItem>
+                <SelectItem value="rejected">rejected</SelectItem>
+                <SelectItem value="published">published</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div>
-          <label>Фильтр по статусу</label>
-          <select value={draftStatusFilter} onChange={(event) => setDraftStatusFilter(event.target.value)}>
-            <option value="all">all</option>
-            <option value="new">new</option>
-            <option value="flagged">flagged</option>
-            <option value="approved">approved</option>
-            <option value="rejected">rejected</option>
-            <option value="published">published</option>
-          </select>
+
+        <div className="stack">
+          {filteredDrafts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">По выбранным фильтрам черновиков не найдено.</p>
+          ) : (
+            filteredDrafts.map((draft) => (
+              <Card key={draft.id} className="py-4">
+                <CardHeader className="pb-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base">
+                      #{draft.id} — {draft.title_translated || draft.title_original || "Без заголовка"}
+                    </CardTitle>
+                    <Badge variant="secondary">{draft.status}</Badge>
+                    <Badge variant="outline">
+                      {draft.source_language || "?"} → {draft.target_language}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    {(draft.content_translated || draft.content_original || "").slice(0, 300)}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" onClick={() => void handleApproveDraft(draft.id)} disabled={isBusy}>
+                      Одобрить
+                    </Button>
+                    <Input
+                      className="min-w-[220px] max-w-md"
+                      type="text"
+                      placeholder="Причина отклонения"
+                      value={rejectReasonByDraft[draft.id] || ""}
+                      onChange={(event) =>
+                        setRejectReasonByDraft((prev) => ({ ...prev, [draft.id]: event.target.value }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => {
+                        if (!window.confirm(`Подтвердить отклонение draft #${draft.id}?`)) {
+                          return;
+                        }
+                        void handleRejectDraft(draft.id);
+                      }}
+                      disabled={isBusy}
+                    >
+                      Отклонить
+                    </Button>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="grid gap-2">
+                      <Label>LLM задача</Label>
+                      <Select
+                        value={llmTaskTypeByDraft[draft.id] || "summary"}
+                        onValueChange={(value) =>
+                          setLlmTaskTypeByDraft((prev) => ({
+                            ...prev,
+                            [draft.id]: value as LlmTaskType,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="summary">summary</SelectItem>
+                          <SelectItem value="rewrite">rewrite</SelectItem>
+                          <SelectItem value="title_hashtags">title_hashtags</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Model (опционально)</Label>
+                      <Input
+                        type="text"
+                        placeholder="openai/gpt-4o-mini"
+                        value={llmModelByDraft[draft.id] || ""}
+                        onChange={(event) =>
+                          setLlmModelByDraft((prev) => ({ ...prev, [draft.id]: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>max_len</Label>
+                      <Input
+                        type="number"
+                        min={100}
+                        max={4000}
+                        value={llmMaxLenByDraft[draft.id] || 700}
+                        onChange={(event) =>
+                          setLlmMaxLenByDraft((prev) => ({
+                            ...prev,
+                            [draft.id]: Number(event.target.value) || 700,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <Button type="button" onClick={() => void handleRunLlm(draft.id)} disabled={isBusy}>
+                    Запустить LLM
+                  </Button>
+                  {llmResultByDraft[draft.id] ? (
+                    <pre className="result-box">{llmResultByDraft[draft.id]}</pre>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
-      </div>
-      <div className="stack">
-        {filteredDrafts.length === 0 ? (
-          <p>По выбранным фильтрам черновиков не найдено.</p>
-        ) : (
-          filteredDrafts.map((draft) => (
-            <article key={draft.id} className="card">
-              <h3>
-                #{draft.id} — {draft.title_translated || draft.title_original || "Без заголовка"}
-              </h3>
-              <p className="muted">
-                status: <b>{draft.status}</b> | lang: {draft.source_language || "?"} → {draft.target_language}
-              </p>
-              <p>{(draft.content_translated || draft.content_original || "").slice(0, 300)}</p>
-
-              <div className="draft-actions">
-                <button type="button" onClick={() => void handleApproveDraft(draft.id)} disabled={isBusy}>
-                  Одобрить
-                </button>
-                <input
-                  className="draft-reject-input"
-                  type="text"
-                  placeholder="Причина отклонения"
-                  value={rejectReasonByDraft[draft.id] || ""}
-                  onChange={(event) =>
-                    setRejectReasonByDraft((prev) => ({ ...prev, [draft.id]: event.target.value }))
-                  }
-                />
-                <button
-                  type="button"
-                  className="button danger"
-                  onClick={() => {
-                    if (!window.confirm(`Подтвердить отклонение draft #${draft.id}?`)) {
-                      return;
-                    }
-                    void handleRejectDraft(draft.id);
-                  }}
-                  disabled={isBusy}
-                >
-                  Отклонить
-                </button>
-              </div>
-
-              <div className="form-grid">
-                <div>
-                  <label>LLM задача</label>
-                  <select
-                    value={llmTaskTypeByDraft[draft.id] || "summary"}
-                    onChange={(event) =>
-                      setLlmTaskTypeByDraft((prev) => ({
-                        ...prev,
-                        [draft.id]: event.target.value as LlmTaskType,
-                      }))
-                    }
-                  >
-                    <option value="summary">summary</option>
-                    <option value="rewrite">rewrite</option>
-                    <option value="title_hashtags">title_hashtags</option>
-                  </select>
-                </div>
-                <div>
-                  <label>Model (опционально)</label>
-                  <input
-                    type="text"
-                    placeholder="openai/gpt-4o-mini"
-                    value={llmModelByDraft[draft.id] || ""}
-                    onChange={(event) =>
-                      setLlmModelByDraft((prev) => ({ ...prev, [draft.id]: event.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label>max_len</label>
-                  <input
-                    type="number"
-                    min={100}
-                    max={4000}
-                    value={llmMaxLenByDraft[draft.id] || 700}
-                    onChange={(event) =>
-                      setLlmMaxLenByDraft((prev) => ({
-                        ...prev,
-                        [draft.id]: Number(event.target.value) || 700,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-              <button type="button" onClick={() => void handleRunLlm(draft.id)} disabled={isBusy}>
-                Запустить LLM
-              </button>
-              {llmResultByDraft[draft.id] ? (
-                <pre className="result-box">{llmResultByDraft[draft.id]}</pre>
-              ) : null}
-            </article>
-          ))
-        )}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 
   const renderSources = () => (
-    <section className="card">
-      <h2>Источники</h2>
-      <p className="muted">
-        Полный CRUD для источников открыт на отдельной странице:{" "}
-        <Link href="/dashboard/sources">/dashboard/sources</Link>
-      </p>
-      <p className="muted">
-        Текущая роль: <b>{initialSession.role}</b> (управление источниками доступно на отдельной странице)
-      </p>
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle>Источники</CardTitle>
+        <CardDescription>CRUD для источников вынесен на отдельный экран.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <p className="text-sm text-muted-foreground">
+          Текущая роль: <b>{initialSession.role}</b>
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href="/dashboard/sources">Открыть /dashboard/sources</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/publications">Перейти в публикации</Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 
   const renderPublications = () => (
-    <section className="card">
-      <h2>Публикации</h2>
-      <p className="muted">Создание публикации и операционные retry/requeue действия.</p>
-      <div className="form-grid">
-        <div>
-          <label>Поиск по публикациям</label>
-          <input
-            type="text"
-            placeholder="ID, draft_id, channel, log"
-            value={publicationQuery}
-            onChange={(event) => setPublicationQuery(event.target.value)}
-          />
-        </div>
-        <div>
-          <label>Фильтр по статусу</label>
-          <select
-            value={publicationStatusFilter}
-            onChange={(event) => setPublicationStatusFilter(event.target.value)}
-          >
-            <option value="all">all</option>
-            <option value="queued">queued</option>
-            <option value="running">running</option>
-            <option value="scheduled">scheduled</option>
-            <option value="success">success</option>
-            <option value="error">error</option>
-          </select>
-        </div>
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Публикации</CardTitle>
+        <CardDescription>Создание публикации и операционные retry/requeue действия.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <Card className="py-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Создать публикацию</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-2">
+                <Label>Draft ID</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={pubDraftId || ""}
+                  onChange={(event) => setPubDraftId(Number(event.target.value) || 0)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Channel alias</Label>
+                <Input
+                  type="text"
+                  placeholder="main"
+                  value={pubChannel}
+                  onChange={(event) => setPubChannel(event.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Режим</Label>
+                <Select value={pubNow ? "now" : "scheduled"} onValueChange={(value) => setPubNow(value === "now")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="now">publish_now=true</SelectItem>
+                    <SelectItem value="scheduled">scheduled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>scheduled_at</Label>
+                <Input
+                  type="datetime-local"
+                  value={pubScheduleAt}
+                  onChange={(event) => setPubScheduleAt(event.target.value)}
+                  disabled={pubNow}
+                />
+              </div>
+            </div>
+            <Button type="button" onClick={() => void handleCreatePublication()} disabled={isBusy}>
+              Создать публикацию
+            </Button>
+          </CardContent>
+        </Card>
 
-      <section className="card">
-        <h3>Создать публикацию</h3>
-        <div className="form-grid">
-          <div>
-            <label>Draft ID</label>
-            <input
-              type="number"
-              min={1}
-              value={pubDraftId || ""}
-              onChange={(event) => setPubDraftId(Number(event.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label>Channel alias</label>
-            <input
-              type="text"
-              placeholder="main"
-              value={pubChannel}
-              onChange={(event) => setPubChannel(event.target.value)}
-            />
-          </div>
-          <div>
-            <label>Режим</label>
-            <select value={pubNow ? "now" : "scheduled"} onChange={(event) => setPubNow(event.target.value === "now")}>
-              <option value="now">publish_now=true</option>
-              <option value="scheduled">scheduled</option>
-            </select>
-          </div>
-          <div>
-            <label>scheduled_at (local datetime)</label>
-            <input
-              type="datetime-local"
-              value={pubScheduleAt}
-              onChange={(event) => setPubScheduleAt(event.target.value)}
-              disabled={pubNow}
-            />
-          </div>
-        </div>
-        <button type="button" onClick={() => void handleCreatePublication()} disabled={isBusy}>
-          Создать публикацию
-        </button>
-      </section>
-
-      <section className="card">
-        <h3>Последние публикации</h3>
-        <div className="form-grid">
-          <div>
-            <label>Поиск</label>
-            <input
-              type="text"
-              placeholder="ID, draft_id, channel, log"
-              value={publicationQuery}
-              onChange={(event) => setPublicationQuery(event.target.value)}
-            />
-          </div>
-          <div>
-            <label>Фильтр по статусу</label>
-            <select
-              value={publicationStatusFilter}
-              onChange={(event) => setPublicationStatusFilter(event.target.value)}
-            >
-              <option value="all">all</option>
-              <option value="queued">queued</option>
-              <option value="running">running</option>
-              <option value="scheduled">scheduled</option>
-              <option value="success">success</option>
-              <option value="error">error</option>
-            </select>
-          </div>
-        </div>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>draft_id</th>
-              <th>channel</th>
-              <th>status</th>
-              <th>scheduled_at</th>
-              <th>published_at</th>
-              <th>actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredPublications.map((publication) => (
-              <tr key={publication.id}>
-                <td>{publication.id}</td>
-                <td>{publication.draft_id ?? "-"}</td>
-                <td>{publication.channel_alias || publication.channel_id || "-"}</td>
-                <td>{publication.status}</td>
-                <td>{humanizeDate(publication.scheduled_at)}</td>
-                <td>{humanizeDate(publication.published_at)}</td>
-                <td>
-                  <div className="actions">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!window.confirm(`Повторно отправить publication #${publication.id}?`)) {
-                          return;
-                        }
-                        void handleRetryPublication(publication.id);
-                      }}
-                      disabled={isBusy}
-                    >
-                      Retry
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!window.confirm(`Requeue failed publication #${publication.id}?`)) {
-                          return;
-                        }
-                        void handleRequeueFailedPublication(publication.id);
-                      }}
-                      disabled={isBusy}
-                    >
-                      Requeue failed
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    </section>
+        <Card className="py-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Последние публикации</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Поиск</Label>
+                <Input
+                  type="text"
+                  placeholder="ID, draft_id, channel, log"
+                  value={publicationQuery}
+                  onChange={(event) => setPublicationQuery(event.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Фильтр по статусу</Label>
+                <Select value={publicationStatusFilter} onValueChange={setPublicationStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">all</SelectItem>
+                    <SelectItem value="queued">queued</SelectItem>
+                    <SelectItem value="running">running</SelectItem>
+                    <SelectItem value="scheduled">scheduled</SelectItem>
+                    <SelectItem value="success">success</SelectItem>
+                    <SelectItem value="error">error</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>draft_id</TableHead>
+                  <TableHead>channel</TableHead>
+                  <TableHead>status</TableHead>
+                  <TableHead>scheduled_at</TableHead>
+                  <TableHead>published_at</TableHead>
+                  <TableHead>actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPublications.map((publication) => (
+                  <TableRow key={publication.id}>
+                    <TableCell>{publication.id}</TableCell>
+                    <TableCell>{publication.draft_id ?? "-"}</TableCell>
+                    <TableCell>{publication.channel_alias || publication.channel_id || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant={publication.status === "error" ? "destructive" : "secondary"}>
+                        {publication.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{humanizeDate(publication.scheduled_at)}</TableCell>
+                    <TableCell>{humanizeDate(publication.published_at)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (!window.confirm(`Повторно отправить publication #${publication.id}?`)) {
+                              return;
+                            }
+                            void handleRetryPublication(publication.id);
+                          }}
+                          disabled={isBusy}
+                        >
+                          Retry
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (!window.confirm(`Requeue failed publication #${publication.id}?`)) {
+                              return;
+                            }
+                            void handleRequeueFailedPublication(publication.id);
+                          }}
+                          disabled={isBusy}
+                        >
+                          Requeue
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </CardContent>
+    </Card>
   );
 
   return (
-    <main className="container">
-      <h1>NewsBot Web</h1>
-      <p className="muted">
-        Пользователь: #{initialSession.id} ({initialSession.role})
-      </p>
-
-      <section className="card">
-        <div className="actions">
-          <button
-            type="button"
-            className={activeTab === "drafts" ? "button-primary" : ""}
-            onClick={() => setActiveTab("drafts")}
-          >
-            Черновики + LLM
-          </button>
-          <button
-            type="button"
-            className={activeTab === "sources" ? "button-primary" : ""}
-            onClick={() => setActiveTab("sources")}
-          >
-            Источники
-          </button>
-          <button
-            type="button"
-            className={activeTab === "publications" ? "button-primary" : ""}
-            onClick={() => setActiveTab("publications")}
-          >
-            Публикации
-          </button>
-          <label className="checkbox dashboard-live-refresh-toggle">
-            <input
-              type="checkbox"
+    <main className="page-container space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            NewsBot Web
+            <Badge variant="outline">
+              #{initialSession.id} ({initialSession.role})
+            </Badge>
+          </CardTitle>
+          <CardDescription>
+            Операционная панель модерации, LLM-задач и публикаций.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="live-refresh" className="text-sm">
+              Live refresh
+            </Label>
+            <Switch
+              id="live-refresh"
               checked={liveRefreshEnabled}
-              onChange={(event) => setLiveRefreshEnabled(event.target.checked)}
+              onCheckedChange={setLiveRefreshEnabled}
             />
-            live refresh
-          </label>
-        </div>
-        <p className="hint">
-          Автообновление активно только при pending-статусах (draft: new/flagged, publication:
-          queued/running/scheduled).
-        </p>
-      </section>
-
-      {activeTab === "drafts" ? renderDrafts() : null}
-      {activeTab === "sources" ? renderSources() : null}
-      {activeTab === "publications" ? renderPublications() : null}
-
-      <div className="toast-stack">
-        {toasts.map((toast) => (
-          <div key={toast.id} className={`toast toast-${toast.kind}`}>
-            {toast.message}
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refreshDrafts();
+              void refreshPublications();
+            }}
+          >
+            <RefreshCw className="size-4" />
+            Обновить сейчас
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
+        <TabsList>
+          <TabsTrigger value="drafts">Черновики + LLM</TabsTrigger>
+          <TabsTrigger value="sources">Источники</TabsTrigger>
+          <TabsTrigger value="publications">Публикации</TabsTrigger>
+        </TabsList>
+        <TabsContent value="drafts" className="mt-4">
+          {renderDrafts()}
+        </TabsContent>
+        <TabsContent value="sources" className="mt-4">
+          {renderSources()}
+        </TabsContent>
+        <TabsContent value="publications" className="mt-4">
+          {renderPublications()}
+        </TabsContent>
+      </Tabs>
+
+      <div className="fixed right-4 bottom-4 z-50 grid gap-2">
+        {toasts.map((toast) => (
+          <Card
+            key={toast.id}
+            className={`w-[280px] border py-3 shadow-lg ${
+              toast.kind === "success"
+                ? "border-green-500/40 bg-green-500/10"
+                : toast.kind === "error"
+                  ? "border-red-500/40 bg-red-500/10"
+                  : "border-blue-500/40 bg-blue-500/10"
+            }`}
+          >
+            <CardContent className="px-4 text-sm">{toast.message}</CardContent>
+          </Card>
         ))}
       </div>
     </main>

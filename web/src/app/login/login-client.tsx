@@ -3,6 +3,11 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TelegramWidget from "./telegram-widget";
 
 type AuthMode = "telegram_init_data" | "telegram_login_widget";
@@ -121,74 +126,93 @@ export default function LoginClient({ botUsername }: Props) {
   }, [submitAuth]);
 
   return (
-    <main className="container">
-      <section className="card">
-        <h1>Вход в веб-панель</h1>
-        <p>
-          Вход доступен через <b>Telegram WebApp initData</b> (внутри бота) и{" "}
-          <b>Telegram Login Widget</b> (в браузере).
-        </p>
-        <div className="card">
-          <h2>Быстрый вход из Telegram</h2>
-          <p className="hint">
-            Если страница открыта как Mini App, нажмите кнопку — вход выполнится автоматически.
-          </p>
-          <button type="button" onClick={fillFromTelegramWebApp} disabled={isPending}>
-            {isPending ? "Проверяем..." : "Войти через Telegram WebApp"}
-          </button>
-          <p className="hint">
-            <a href={TELEGRAM_WEBAPP_DOCS_URL} target="_blank" rel="noreferrer">
-              Документация Telegram WebApp initData
-            </a>
-          </p>
-        </div>
+    <main className="page-container">
+      <div className="mx-auto grid max-w-3xl gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Вход в веб-панель</CardTitle>
+            <CardDescription>
+              Вход доступен через <b>Telegram WebApp initData</b> (внутри бота) и{" "}
+              <b>Telegram Login Widget</b> (в браузере).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <Card className="py-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Быстрый вход из Telegram</CardTitle>
+                <CardDescription>
+                  Если страница открыта как Mini App, нажмите кнопку — вход выполнится автоматически.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button type="button" onClick={fillFromTelegramWebApp} disabled={isPending}>
+                  {isPending ? "Проверяем..." : "Войти через Telegram WebApp"}
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  <a href={TELEGRAM_WEBAPP_DOCS_URL} target="_blank" rel="noreferrer">
+                    Документация Telegram WebApp initData
+                  </a>
+                </p>
+              </CardContent>
+            </Card>
 
-        <div className="card">
-          <h2>Вход через Telegram Login Widget</h2>
-          {botUsername ? (
-            <TelegramWidget botUsername={botUsername} onAuth={onWidgetAuth} />
-          ) : (
-            <p className="hint">
-              Укажите `TELEGRAM_BOT_USERNAME` в окружении, чтобы включить login widget.
-            </p>
-          )}
-          <p className="hint">
-            <a href={TELEGRAM_LOGIN_DOCS_URL} target="_blank" rel="noreferrer">
-              Telegram docs
-            </a>
-          </p>
-        </div>
+            <Card className="py-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Вход через Telegram Login Widget</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {botUsername ? (
+                  <TelegramWidget botUsername={botUsername} onAuth={onWidgetAuth} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Укажите `TELEGRAM_BOT_USERNAME` в окружении, чтобы включить login widget.
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  <a href={TELEGRAM_LOGIN_DOCS_URL} target="_blank" rel="noreferrer">
+                    Telegram docs
+                  </a>
+                </p>
+              </CardContent>
+            </Card>
 
-        <details>
-          <summary>Ручной fallback (debug)</summary>
-          <form onSubmit={onSubmit}>
-            <label htmlFor="mode">Режим входа</label>
-            <select
-              id="mode"
-              value={mode}
-              onChange={(event) => setMode(event.target.value as AuthMode)}
-            >
-              <option value="telegram_init_data">Telegram WebApp initData</option>
-              <option value="telegram_login_widget">Telegram Login Widget JSON</option>
-            </select>
+            <details>
+              <summary className="cursor-pointer text-sm font-medium">Ручной fallback (debug)</summary>
+              <form className="mt-3 grid gap-3" onSubmit={onSubmit}>
+                <div className="grid gap-2">
+                  <Label htmlFor="mode">Режим входа</Label>
+                  <Select value={mode} onValueChange={(value) => setMode(value as AuthMode)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="telegram_init_data">Telegram WebApp initData</SelectItem>
+                      <SelectItem value="telegram_login_widget">Telegram Login Widget JSON</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <label htmlFor="payload">
-              {mode === "telegram_init_data" ? "initData string" : "Widget JSON payload"}
-            </label>
-            <textarea
-              id="payload"
-              value={payload}
-              onChange={(event) => setPayload(event.target.value)}
-              placeholder={placeholder}
-              required
-            />
-            <button type="submit" disabled={isPending}>
-              {isPending ? "Входим..." : "Войти вручную"}
-            </button>
-          </form>
-        </details>
-        {error ? <p className="error">{error}</p> : null}
-      </section>
+                <div className="grid gap-2">
+                  <Label htmlFor="payload">
+                    {mode === "telegram_init_data" ? "initData string" : "Widget JSON payload"}
+                  </Label>
+                  <Input
+                    id="payload"
+                    value={payload}
+                    onChange={(event) => setPayload(event.target.value)}
+                    placeholder={placeholder}
+                    required
+                  />
+                </div>
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? "Входим..." : "Войти вручную"}
+                </Button>
+              </form>
+            </details>
+            {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }
