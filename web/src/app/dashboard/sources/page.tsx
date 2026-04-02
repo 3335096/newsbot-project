@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -15,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
 import { env } from "@/lib/env";
 import { getSessionUser } from "@/lib/session";
 import type { SourceOut } from "@/lib/types";
@@ -192,8 +192,16 @@ export default async function SourcesPage() {
                   <Input id="create-name" name="name" type="text" required />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="create-type">Тип (rss/site)</Label>
-                  <Input id="create-type" name="type" type="text" defaultValue="rss" />
+                  <Label htmlFor="create-type">Тип</Label>
+                  <Select name="type" defaultValue="rss">
+                    <SelectTrigger id="create-type">
+                      <SelectValue placeholder="Выберите тип" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rss">rss</SelectItem>
+                      <SelectItem value="site">site</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="create-url">URL</Label>
@@ -211,11 +219,21 @@ export default async function SourcesPage() {
 
               <div className="flex flex-wrap items-center gap-4">
                 <label className="flex items-center gap-2 text-sm">
-                  <Checkbox name="enabled" defaultChecked />
+                  <input
+                    name="enabled"
+                    type="checkbox"
+                    defaultChecked
+                    className="size-4 rounded border border-input"
+                  />
                   enabled
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <Checkbox name="translate_enabled" defaultChecked />
+                  <input
+                    name="translate_enabled"
+                    type="checkbox"
+                    defaultChecked
+                    className="size-4 rounded border border-input"
+                  />
                   translate_enabled
                 </label>
               </div>
@@ -291,13 +309,20 @@ export default async function SourcesPage() {
                             />
                             <div className="flex flex-wrap items-center gap-4">
                               <label className="flex items-center gap-2 text-sm">
-                                <Checkbox name="enabled" defaultChecked={source.enabled} />
+                                <input
+                                  name="enabled"
+                                  type="checkbox"
+                                  defaultChecked={source.enabled}
+                                  className="size-4 rounded border border-input"
+                                />
                                 enabled
                               </label>
                               <label className="flex items-center gap-2 text-sm">
-                                <Checkbox
+                                <input
                                   name="translate_enabled"
+                                  type="checkbox"
                                   defaultChecked={source.translate_enabled}
+                                  className="size-4 rounded border border-input"
                                 />
                                 translate_enabled
                               </label>

@@ -48,6 +48,16 @@ const POLL_INTERVAL_MS = 1000;
 const POLL_ATTEMPTS = 12;
 const LIVE_REFRESH_INTERVAL_MS = 5000;
 
+function fieldGridClassName(columns: 2 | 3 | 4 = 2): string {
+  if (columns === 4) {
+    return "grid items-end gap-4 md:grid-cols-2 xl:grid-cols-4";
+  }
+  if (columns === 3) {
+    return "grid items-end gap-4 md:grid-cols-3";
+  }
+  return "grid items-end gap-4 md:grid-cols-2";
+}
+
 function humanizeDate(value: string | null | undefined): string {
   if (!value) {
     return "-";
@@ -346,7 +356,7 @@ export default function ClientDashboard({
         <CardDescription>Одобрение/отклонение и запуск LLM-задач прямо из веба.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className={fieldGridClassName(2)}>
           <div className="grid gap-2">
             <Label>Поиск по черновикам</Label>
             <Input
@@ -424,7 +434,7 @@ export default function ClientDashboard({
                     </Button>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className={fieldGridClassName(3)}>
                     <div className="grid gap-2">
                       <Label>LLM задача</Label>
                       <Select
@@ -522,7 +532,7 @@ export default function ClientDashboard({
             <CardTitle className="text-base">Создать публикацию</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className={fieldGridClassName(4)}>
               <div className="grid gap-2">
                 <Label>Draft ID</Label>
                 <Input
@@ -574,7 +584,7 @@ export default function ClientDashboard({
             <CardTitle className="text-base">Последние публикации</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className={fieldGridClassName(2)}>
               <div className="grid gap-2">
                 <Label>Поиск</Label>
                 <Input
