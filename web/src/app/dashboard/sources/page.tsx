@@ -2,6 +2,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { env } from "@/lib/env";
 import { getSessionUser } from "@/lib/session";
 import type { SourceOut } from "@/lib/types";
@@ -142,143 +156,174 @@ export default async function SourcesPage() {
   const sources = await fetchSources();
 
   return (
-    <main className="container">
-      <div className="row space-between">
-        <h1>Источники</h1>
-        <div className="row">
-          <Link href="/dashboard">Назад к панели</Link>
-          <Link href="/dashboard/publications">Публикации</Link>
-        </div>
-      </div>
+    <main className="page-container space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Источники</CardTitle>
+              <CardDescription>Управление источниками и ручной parse-now.</CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard">Назад к панели</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/publications">Публикации</Link>
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
       {session.role === "admin" ? (
-        <section className="card">
-          <h2>Добавить источник</h2>
-          <form action={createSource}>
-            <div className="form-grid">
-              <div>
-                <label>Название</label>
-                <input name="name" type="text" required />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Добавить источник</CardTitle>
+            <CardDescription>
+              Новые источники используются scheduler-ом и ручным parse-now.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={createSource} className="grid gap-4">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="create-name">Название</Label>
+                  <Input id="create-name" name="name" type="text" required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="create-type">Тип (rss/site)</Label>
+                  <Input id="create-type" name="type" type="text" defaultValue="rss" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="create-url">URL</Label>
+                  <Input id="create-url" name="url" type="url" required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="create-cron">Cron</Label>
+                  <Input id="create-cron" name="schedule_cron" type="text" placeholder="*/30 * * * *" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="create-lang">Язык по умолчанию</Label>
+                  <Input id="create-lang" name="default_target_language" type="text" defaultValue="ru" />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox name="enabled" defaultChecked />
+                  enabled
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox name="translate_enabled" defaultChecked />
+                  translate_enabled
+                </label>
               </div>
               <div>
-                <label>Тип</label>
-                <select name="type" defaultValue="rss">
-                  <option value="rss">rss</option>
-                  <option value="site">site</option>
-                </select>
+                <Button type="submit">Создать</Button>
               </div>
-              <div>
-                <label>URL</label>
-                <input name="url" type="url" required />
-              </div>
-              <div>
-                <label>Cron</label>
-                <input name="schedule_cron" type="text" placeholder="*/30 * * * *" />
-              </div>
-              <div>
-                <label>Язык по умолчанию</label>
-                <input name="default_target_language" type="text" defaultValue="ru" />
-              </div>
-            </div>
-            <div className="row">
-              <label className="checkbox">
-                <input name="enabled" type="checkbox" defaultChecked />
-                enabled
-              </label>
-              <label className="checkbox">
-                <input name="translate_enabled" type="checkbox" defaultChecked />
-                translate_enabled
-              </label>
-            </div>
-            <button type="submit">Создать</button>
-          </form>
-        </section>
+            </form>
+          </CardContent>
+        </Card>
       ) : null}
-      <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th align="left">ID</th>
-              <th align="left">Название</th>
-              <th align="left">Тип</th>
-              <th align="left">URL</th>
-              <th align="left">Включен</th>
-              <th align="left">Перевод</th>
-              <th align="left">Cron</th>
-              <th align="left">Язык</th>
-              <th align="left">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sources.map((source) => (
-              <tr key={source.id}>
-                <td>{source.id}</td>
-                <td>{source.name}</td>
-                <td>{source.type}</td>
-                <td>
-                  <a href={source.url} target="_blank" rel="noreferrer">
-                    {source.url}
-                  </a>
-                </td>
-                <td>{source.enabled ? "yes" : "no"}</td>
-                <td>{source.translate_enabled ? "yes" : "no"}</td>
-                <td>{source.schedule_cron || "-"}</td>
-                <td>{source.default_target_language}</td>
-                <td>
-                  <form action={parseNow} style={{ display: "inline-block", marginRight: 8 }}>
-                    <input type="hidden" name="source_id" value={source.id} />
-                    <button type="submit">Parse now</button>
-                  </form>
-                  {session.role === "admin" ? (
-                    <details>
-                      <summary>Edit</summary>
-                      <form action={updateSource}>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Список источников</CardTitle>
+          <CardDescription>Всего: {sources.length}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Название</TableHead>
+                <TableHead>Тип</TableHead>
+                <TableHead>URL</TableHead>
+                <TableHead>Включен</TableHead>
+                <TableHead>Перевод</TableHead>
+                <TableHead>Cron</TableHead>
+                <TableHead>Язык</TableHead>
+                <TableHead>Действия</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sources.map((source) => (
+                <TableRow key={source.id}>
+                  <TableCell>{source.id}</TableCell>
+                  <TableCell>{source.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{source.type}</Badge>
+                  </TableCell>
+                  <TableCell className="max-w-[260px]">
+                    <a href={source.url} target="_blank" rel="noreferrer" className="truncate">
+                      {source.url}
+                    </a>
+                  </TableCell>
+                  <TableCell>{source.enabled ? "yes" : "no"}</TableCell>
+                  <TableCell>{source.translate_enabled ? "yes" : "no"}</TableCell>
+                  <TableCell>{source.schedule_cron || "-"}</TableCell>
+                  <TableCell>{source.default_target_language}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-2">
+                      <form action={parseNow}>
                         <input type="hidden" name="source_id" value={source.id} />
-                        <label>Название</label>
-                        <input name="name" type="text" defaultValue={source.name} required />
-                        <label>Cron</label>
-                        <input
-                          name="schedule_cron"
-                          type="text"
-                          defaultValue={source.schedule_cron || ""}
-                        />
-                        <label>Язык</label>
-                        <input
-                          name="default_target_language"
-                          type="text"
-                          defaultValue={source.default_target_language}
-                        />
-                        <div className="row">
-                          <label className="checkbox">
-                            <input name="enabled" type="checkbox" defaultChecked={source.enabled} />
-                            enabled
-                          </label>
-                          <label className="checkbox">
-                            <input
-                              name="translate_enabled"
-                              type="checkbox"
-                              defaultChecked={source.translate_enabled}
+                        <Button type="submit" size="sm" variant="outline">
+                          Parse now
+                        </Button>
+                      </form>
+                    </div>
+                    {session.role === "admin" ? (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-sm text-muted-foreground">Edit / Delete</summary>
+                        <div className="mt-2 grid gap-3 rounded-md border p-3">
+                          <form action={updateSource} className="grid gap-2">
+                            <input type="hidden" name="source_id" value={source.id} />
+                            <Label>Название</Label>
+                            <Input name="name" type="text" defaultValue={source.name} required />
+                            <Label>Cron</Label>
+                            <Input name="schedule_cron" type="text" defaultValue={source.schedule_cron || ""} />
+                            <Label>Язык</Label>
+                            <Input
+                              name="default_target_language"
+                              type="text"
+                              defaultValue={source.default_target_language}
                             />
-                            translate_enabled
-                          </label>
+                            <div className="flex flex-wrap items-center gap-4">
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox name="enabled" defaultChecked={source.enabled} />
+                                enabled
+                              </label>
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  name="translate_enabled"
+                                  defaultChecked={source.translate_enabled}
+                                />
+                                translate_enabled
+                              </label>
+                            </div>
+                            <Button type="submit" size="sm">
+                              Сохранить
+                            </Button>
+                          </form>
+                          <form action={deleteSource} className="grid gap-2">
+                            <input type="hidden" name="source_id" value={source.id} />
+                            <Label>Подтвердите удаление</Label>
+                            <Input name="confirm_delete" type="text" placeholder="DELETE" required />
+                            <Button type="submit" size="sm" variant="destructive">
+                              Удалить
+                            </Button>
+                          </form>
                         </div>
-                        <button type="submit">Сохранить</button>
-                      </form>
-                      <form action={deleteSource}>
-                        <input type="hidden" name="source_id" value={source.id} />
-                        <label>Подтвердите удаление</label>
-                        <input name="confirm_delete" type="text" placeholder="DELETE" required />
-                        <button type="submit" className="button danger">
-                          Удалить
-                        </button>
-                      </form>
-                    </details>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                      </details>
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </main>
   );
 }
